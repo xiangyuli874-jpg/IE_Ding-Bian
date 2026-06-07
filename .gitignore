@@ -1,0 +1,30 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments and local tooling
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Runtime output
+outputs/
+logs/
+*.log
+
+# Excel business data and generated workbooks
+*.xlsx
+*.xls
+*.xlsm
+*.xlsb
+~$*
+*_excel_resave.*
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
