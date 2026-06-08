@@ -75,7 +75,7 @@ def result_workbooks(output_dir: Path) -> list[Path]:
         [
             path
             for path in output_dir.glob("*.xlsx")
-            if path.is_file() and is_result_workbook(path)
+            if path.is_file() and not path.name.startswith("~$") and is_result_workbook(path)
         ],
         key=lambda path: path.stat().st_mtime,
     )

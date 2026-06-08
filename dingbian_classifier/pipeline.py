@@ -6,7 +6,19 @@ from pathlib import Path
 
 from .classifier import classify_rows
 from .coefficients import apply_manual_coefficients, fill_coefficients, prepare_coefficients
-from .decomposition import decompose_rolling_remark_rules, decompose_skd, decompose_t7p7t5p5_dreame, decompose_t9p9
+from .decomposition import (
+    decompose_rolling_remark_rules,
+    decompose_c6_heat_pump_dryer,
+    decompose_composite_penguin_c6,
+    decompose_rolling_final,
+    decompose_skd,
+    decompose_t7p7t5p5_dreame,
+    decompose_t9p9,
+    decompose_t9p9_dryer,
+    decompose_t10p10,
+    decompose_wave_basic,
+    decompose_wave_final,
+)
 from .excel_repair import resave_with_excel_if_available
 from .excel_io import build_output_path, copy_workbook, load_workbook_pair, move_auxiliary_sheets_after, read_main_table
 from .formatting import format_main_sheet
@@ -105,6 +117,90 @@ def run(
 
     if stage == "decompose-t9p9":
         decompose_t9p9(formula_wb, target_sheet_name, logger)
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        set_active_sheet(formula_wb, target_sheet_name, logger)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "decompose-t9p9-dryer":
+        decompose_t9p9_dryer(formula_wb, target_sheet_name, logger)
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        set_active_sheet(formula_wb, target_sheet_name, logger)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "decompose-t10p10":
+        decompose_t10p10(formula_wb, target_sheet_name, logger)
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        set_active_sheet(formula_wb, target_sheet_name, logger)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "decompose-c6-heat-pump-dryer":
+        decompose_c6_heat_pump_dryer(formula_wb, target_sheet_name, logger)
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        set_active_sheet(formula_wb, target_sheet_name, logger)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "decompose-composite-penguin-c6":
+        decompose_composite_penguin_c6(formula_wb, target_sheet_name, logger)
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        set_active_sheet(formula_wb, target_sheet_name, logger)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "decompose-rolling-final":
+        decompose_rolling_final(formula_wb, target_sheet_name, logger)
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        set_active_sheet(formula_wb, target_sheet_name, logger)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "decompose-wave-basic":
+        decompose_wave_basic(formula_wb, values_wb, target_sheet_name, logger)
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        set_active_sheet(formula_wb, target_sheet_name, logger)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "decompose-wave-final":
+        decompose_wave_final(formula_wb, values_wb, target_sheet_name, logger)
         logger.info(f"即将保存处理结果：{output_path}")
         move_auxiliary_sheets_after(formula_wb, target_sheet_name)
         set_active_sheet(formula_wb, target_sheet_name, logger)

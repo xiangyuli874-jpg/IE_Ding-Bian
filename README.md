@@ -6,9 +6,10 @@
 
 - 自动查找周排产明细主工作表。
 - 生成系数、钣金型号等待补充工作表，支持查询表回填和人工回填。
-- 支持 SKD、滚筒备注、T7/P7/T5/P5/追觅、T9/P9 等排单分解阶段。
+- 支持 SKD、滚筒备注、T7/P7/T5/P5/追觅、T9/P9、T10/P10、C6、复式、企鹅、滚筒收尾和波轮收尾等排单分解阶段。
 - 根据工作簿内的分类规则配置生成分类结果、未分类数据和分类汇总表。
 - 在处理结果中写入处理日志，并保留有限数量的历史备份。
+- 清理旧结果时会跳过 Excel 打开的临时锁文件，避免误处理 `~$` 开头的临时文件。
 
 ## 项目结构
 
@@ -84,6 +85,24 @@ python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outpu
 python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage classify
 ```
 
+## 推荐排单分解顺序
+
+排单分解阶段会在主表中标记“类型”并刷新“排单分解表明细”。建议按下面顺序逐步处理，并将每一步输出作为下一步输入：
+
+```powershell
+python run_classifier.py --input "<当前结果.xlsx>" --output-dir "outputs" --stage decompose-skd
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-rolling-remarks
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-t7p7t5p5-dreame
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-t9p9
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-t9p9-dryer
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-t10p10
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-c6-heat-pump-dryer
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-composite-penguin-c6
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-rolling-final
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-wave-basic
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-wave-final
+```
+
 ## 支持的 stage
 
 - `prepare-coefficients`：生成系数补充表。
@@ -98,6 +117,13 @@ python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outpu
 - `decompose-rolling-remarks`：执行滚筒备注相关排单分解。
 - `decompose-t7p7t5p5-dreame`：执行 T7/P7/T5/P5/追觅规则分解。
 - `decompose-t9p9`：执行 T9/P9 规则分解。
+- `decompose-t9p9-dryer`：执行 T9/P9 干衣机规则分解。
+- `decompose-t10p10`：执行 T10/P10 洗衣机和干衣机规则分解。
+- `decompose-c6-heat-pump-dryer`：执行 C6 热泵干衣机规则分解。
+- `decompose-composite-penguin-c6`：执行复式、企鹅和 C6 相关规则分解。
+- `decompose-rolling-final`：执行滚筒收尾规则，补齐普通烘干、普通内销和外销等分类，并统计剩余未分类差异。
+- `decompose-wave-basic`：执行波轮基础规则，覆盖 CKD、LG、塑料内销、P7/P9 和 SKD 等分类。
+- `decompose-wave-final`：执行波轮收尾规则，补齐内销铁皮变频、外销普通变频、内销铁皮和外销铁皮等分类，并统计剩余未分类差异。
 - `classify`：执行分类并生成结果表。
 
 ## 文件保留与回退

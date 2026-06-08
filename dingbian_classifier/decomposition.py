@@ -39,6 +39,73 @@ T9P9_WASH_TYPE_FILL = "C9DAF8"
 T9P9_DRY_TYPE_FILL = "FCE4D6"
 T9P9_WASH_TYPE = "T9/P9单洗"
 T9P9_DRY_TYPE = "T9/P9烘干"
+T9P9_DRYER_TYPE = "T9/P9干衣机"
+T9P9_DRYER_TYPE_FILL = "DDEBF7"
+T10P10_MAIN_FILL = "C00000"
+T10P10_WASH_TYPE_FILL = "F4CCCC"
+T10P10_DRYER_TYPE_FILL = "EADCF8"
+T10P10_WASH_TYPE = "T10/P10洗衣机"
+T10P10_DRYER_TYPE = "T10/P10干衣机"
+C6_HEAT_PUMP_DRYER_TYPE = "C6热泵干衣机"
+C6_HEAT_PUMP_DRYER_MAIN_FILL = "8064A2"
+C6_HEAT_PUMP_DRYER_TYPE_FILL = "D9E2F3"
+COMPOSITE_MAIN_FILL = "B4A7D6"
+COMPOSITE_DRY_TYPE_FILL = "D9D2E9"
+COMPOSITE_WASH_TYPE_FILL = "EADCF8"
+COMPOSITE_DRY_TYPE = "复式烘干"
+COMPOSITE_WASH_TYPE = "复式单洗"
+PENGUIN_MAIN_FILL = "A6A6A6"
+PENGUIN_DRYER_TYPE_FILL = "D9D9D9"
+PENGUIN_WASH_TYPE_FILL = "E7E6E6"
+PENGUIN_DRYER_TYPE = "企鹅干衣机"
+PENGUIN_WASH_TYPE = "企鹅洗衣机"
+C6_MAIN_FILL = "548235"
+C6_WASH_TYPE_FILL = "D9EAD3"
+C6_DRY_TYPE_FILL = "E2F0D9"
+C6_WASH_TYPE = "C6单洗"
+C6_DRY_TYPE = "C6烘干"
+ORDINARY_DRY_MAIN_FILL = "F4B183"
+ORDINARY_DRY_TYPE_FILL = "FCE4D6"
+ORDINARY_DRY_TYPE = "普通烘干"
+DOMESTIC_MAIN_FILL = "9EADCC"
+DOMESTIC_TYPE_FILL = "D9E2F3"
+DOMESTIC_TYPE = "普通内销"
+EXPORT_MAIN_FILL = "B7DEE8"
+EXPORT_TYPE_FILL = "DDEBF7"
+EXPORT_TYPE = "外销"
+WAVE_LG_TYPE = "LG"
+WAVE_PLASTIC_DOMESTIC_TYPE = "塑料内销"
+WAVE_P7P9_TYPE = "P7/P9"
+WAVE_P7P9_LABEL = "P7P9"
+WAVE_CKD_MAIN_FILL = "C6E0B4"
+WAVE_CKD_TYPE_FILL = "E2F0D9"
+WAVE_LG_MAIN_FILL = "F8CBAD"
+WAVE_LG_TYPE_FILL = "FCE4D6"
+WAVE_PLASTIC_MAIN_FILL = "BDD7EE"
+WAVE_PLASTIC_TYPE_FILL = "DDEBF7"
+WAVE_P7P9_MAIN_FILL = "D9EAD3"
+WAVE_P7P9_TYPE_FILL = "E2F0D9"
+WAVE_SKD_MAIN_FILL = "D9D2E9"
+WAVE_SKD_TYPE_FILL = "EADCF8"
+WAVE_BASIC_TYPES = {"CKD", WAVE_LG_TYPE, WAVE_PLASTIC_DOMESTIC_TYPE, WAVE_P7P9_TYPE, "SKD"}
+WAVE_DOMESTIC_INVERTER_TYPE = "内销铁皮变频"
+WAVE_EXPORT_INVERTER_TYPE = "外销普通变频"
+WAVE_DOMESTIC_IRON_TYPE = "内销铁皮"
+WAVE_EXPORT_IRON_TYPE = "外销铁皮"
+WAVE_DOMESTIC_INVERTER_MAIN_FILL = "E2F0D9"
+WAVE_DOMESTIC_INVERTER_TYPE_FILL = "C6E0B4"
+WAVE_EXPORT_INVERTER_MAIN_FILL = "FFF2CC"
+WAVE_EXPORT_INVERTER_TYPE_FILL = "FFE699"
+WAVE_DOMESTIC_IRON_MAIN_FILL = "D9E2F3"
+WAVE_DOMESTIC_IRON_TYPE_FILL = "BDD7EE"
+WAVE_EXPORT_IRON_MAIN_FILL = "EADCF8"
+WAVE_EXPORT_IRON_TYPE_FILL = "D9D2E9"
+WAVE_FINAL_TYPES = {
+    WAVE_DOMESTIC_INVERTER_TYPE,
+    WAVE_EXPORT_INVERTER_TYPE,
+    WAVE_DOMESTIC_IRON_TYPE,
+    WAVE_EXPORT_IRON_TYPE,
+}
 
 ROLLING_LABELS = [
     "SKD烘干",
@@ -51,30 +118,30 @@ ROLLING_LABELS = [
     T7P7_WASH_TYPE,
     T9P9_WASH_TYPE,
     T9P9_DRY_TYPE,
-    "T10/P10洗衣机",
-    "T10/P10干衣机",
-    "C6热泵干衣机",
-    "T9/P9干衣机",
-    "复式烘干",
-    "复式单洗",
-    "企鹅干衣机",
-    "企鹅洗衣机",
-    "C6单洗",
-    "C6Q10烘干",
-    "普通烘干",
+    T10P10_WASH_TYPE,
+    T10P10_DRYER_TYPE,
+    C6_HEAT_PUMP_DRYER_TYPE,
+    T9P9_DRYER_TYPE,
+    COMPOSITE_DRY_TYPE,
+    COMPOSITE_WASH_TYPE,
+    PENGUIN_DRYER_TYPE,
+    PENGUIN_WASH_TYPE,
+    C6_WASH_TYPE,
+    C6_DRY_TYPE,
+    ORDINARY_DRY_TYPE,
     "内销",
-    "外销",
+    EXPORT_TYPE,
 ]
 WAVE_LABELS = [
     "CKD",
-    "LG铁皮外销",
-    "塑料内销",
-    "P7P9",
+    WAVE_LG_TYPE,
+    WAVE_PLASTIC_DOMESTIC_TYPE,
+    WAVE_P7P9_LABEL,
     "SKD",
-    "内销铁皮变频",
-    "外销普通变频",
-    "外销铁皮",
-    "内销铁皮",
+    WAVE_DOMESTIC_INVERTER_TYPE,
+    WAVE_EXPORT_INVERTER_TYPE,
+    WAVE_EXPORT_IRON_TYPE,
+    WAVE_DOMESTIC_IRON_TYPE,
 ]
 
 
@@ -115,6 +182,79 @@ class DecomposeT9P9Result:
     skipped_dryer_rows: int = 0
     skipped_unknown_code_rows: int = 0
     skipped_remark_only_rows: int = 0
+
+
+@dataclass
+class DecomposeT9P9DryerResult:
+    rolling_total: Decimal
+    wave_total: Decimal
+    category_totals: dict[str, Decimal] = field(default_factory=dict)
+    category_rows: dict[str, int] = field(default_factory=dict)
+    skipped_non_dryer_rows: int = 0
+    skipped_unknown_code_rows: int = 0
+
+
+@dataclass
+class DecomposeT10P10Result:
+    rolling_total: Decimal
+    wave_total: Decimal
+    category_totals: dict[str, Decimal] = field(default_factory=dict)
+    category_rows: dict[str, int] = field(default_factory=dict)
+    skipped_unknown_code_rows: int = 0
+
+
+@dataclass
+class DecomposeC6HeatPumpDryerResult:
+    rolling_total: Decimal
+    wave_total: Decimal
+    category_totals: dict[str, Decimal] = field(default_factory=dict)
+    category_rows: dict[str, int] = field(default_factory=dict)
+    skipped_non_dryer_rows: int = 0
+    skipped_unknown_code_rows: int = 0
+
+
+@dataclass
+class DecomposeCompositePenguinC6Result:
+    rolling_total: Decimal
+    wave_total: Decimal
+    category_totals: dict[str, Decimal] = field(default_factory=dict)
+    category_rows: dict[str, int] = field(default_factory=dict)
+    skipped_unknown_code_rows: int = 0
+    skipped_non_c6_dryer_rows: int = 0
+
+
+@dataclass
+class DecomposeRollingFinalResult:
+    rolling_total: Decimal
+    wave_total: Decimal
+    category_totals: dict[str, Decimal] = field(default_factory=dict)
+    category_rows: dict[str, int] = field(default_factory=dict)
+    remaining_unclassified_rows: int = 0
+    remaining_unclassified_total: Decimal = Decimal("0")
+    rolling_decomposition_total: Decimal = Decimal("0")
+    rolling_gap: Decimal = Decimal("0")
+
+
+@dataclass
+class DecomposeWaveBasicResult:
+    rolling_total: Decimal
+    wave_total: Decimal
+    category_totals: dict[str, Decimal] = field(default_factory=dict)
+    category_rows: dict[str, int] = field(default_factory=dict)
+    remaining_unclassified_rows: int = 0
+    remaining_unclassified_total: Decimal = Decimal("0")
+
+
+@dataclass
+class DecomposeWaveFinalResult:
+    rolling_total: Decimal
+    wave_total: Decimal
+    category_totals: dict[str, Decimal] = field(default_factory=dict)
+    category_rows: dict[str, int] = field(default_factory=dict)
+    remaining_unclassified_rows: int = 0
+    remaining_unclassified_total: Decimal = Decimal("0")
+    wave_decomposition_total: Decimal = Decimal("0")
+    wave_gap: Decimal = Decimal("0")
 
 
 def decompose_skd(workbook: Workbook, main_sheet_name: str, logger: ProcessingLogger) -> DecomposeSkdResult:
@@ -360,12 +500,586 @@ def decompose_t9p9(
     )
 
 
+def decompose_t9p9_dryer(
+    workbook: Workbook,
+    main_sheet_name: str,
+    logger: ProcessingLogger,
+) -> DecomposeT9P9DryerResult:
+    sheet = workbook[main_sheet_name]
+    headers = _header_map(sheet)
+    _require_columns(
+        headers,
+        ["线体", "订单数", "备注", "物料编码", "物料描述", "类型", *DECOMPOSE_COLUMNS],
+        "主数据表",
+    )
+
+    category_totals: dict[str, Decimal] = {T9P9_DRYER_TYPE: Decimal("0")}
+    category_rows: dict[str, int] = {T9P9_DRYER_TYPE: 0}
+    skipped_non_dryer_rows = 0
+    skipped_unknown_code_rows = 0
+
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if _is_wave_line(line) or not _is_uncolored_for_decomposition(sheet, row_index, headers):
+            continue
+
+        remark = str(sheet.cell(row_index, headers["备注"]).value or "")
+        description = str(sheet.cell(row_index, headers["物料描述"]).value or "")
+        remark_upper = remark.upper()
+        has_remark_candidate = "T9干衣机" in remark_upper or "P9干衣机" in remark_upper
+        has_description_candidate = _is_t9p9_description(description)
+        if not has_remark_candidate and not has_description_candidate:
+            continue
+
+        product_kind = _product_kind_from_material_code(sheet.cell(row_index, headers["物料编码"]).value)
+        if product_kind == "unknown":
+            skipped_unknown_code_rows += 1
+            continue
+        if product_kind != "dryer":
+            skipped_non_dryer_rows += 1
+            continue
+
+        _apply_decomposition_style(
+            sheet,
+            row_index,
+            headers,
+            T9P9_DRYER_TYPE,
+            T9P9_MAIN_FILL,
+            T9P9_DRYER_TYPE_FILL,
+        )
+
+        order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+        category_totals[T9P9_DRYER_TYPE] += order_qty
+        category_rows[T9P9_DRYER_TYPE] += 1
+
+    summary = _collect_decomposition_summary(sheet, headers)
+    write_decomposition_detail_sheet(workbook, main_sheet_name, summary, logger)
+    logger.info(
+        "T9/P9干衣机排单分解完成："
+        f"{T9P9_DRYER_TYPE} {category_rows[T9P9_DRYER_TYPE]} 行/{category_totals[T9P9_DRYER_TYPE]}，"
+        f"跳过非605机型 {skipped_non_dryer_rows} 行，"
+        f"跳过无法识别编码 {skipped_unknown_code_rows} 行。"
+    )
+    return DecomposeT9P9DryerResult(
+        rolling_total=summary["rolling_total"],
+        wave_total=summary["wave_total"],
+        category_totals=category_totals,
+        category_rows=category_rows,
+        skipped_non_dryer_rows=skipped_non_dryer_rows,
+        skipped_unknown_code_rows=skipped_unknown_code_rows,
+    )
+
+
+def decompose_t10p10(
+    workbook: Workbook,
+    main_sheet_name: str,
+    logger: ProcessingLogger,
+) -> DecomposeT10P10Result:
+    sheet = workbook[main_sheet_name]
+    headers = _header_map(sheet)
+    _require_columns(
+        headers,
+        ["线体", "订单数", "备注", "物料编码", "类型", *DECOMPOSE_COLUMNS],
+        "主数据表",
+    )
+
+    category_totals: dict[str, Decimal] = {T10P10_WASH_TYPE: Decimal("0"), T10P10_DRYER_TYPE: Decimal("0")}
+    category_rows: dict[str, int] = {T10P10_WASH_TYPE: 0, T10P10_DRYER_TYPE: 0}
+    skipped_unknown_code_rows = 0
+
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if _is_wave_line(line) or not _is_uncolored_for_decomposition(sheet, row_index, headers):
+            continue
+
+        remark = str(sheet.cell(row_index, headers["备注"]).value or "")
+        remark_upper = remark.upper()
+        if "T10" not in remark_upper and "P10" not in remark_upper:
+            continue
+        if "干衣机" not in remark and "洗衣机" not in remark:
+            continue
+
+        product_kind = _product_kind_from_material_code(sheet.cell(row_index, headers["物料编码"]).value)
+        if product_kind == "unknown":
+            skipped_unknown_code_rows += 1
+            continue
+
+        type_name = T10P10_DRYER_TYPE if product_kind == "dryer" else T10P10_WASH_TYPE
+        type_fill = T10P10_DRYER_TYPE_FILL if product_kind == "dryer" else T10P10_WASH_TYPE_FILL
+        _apply_decomposition_style(sheet, row_index, headers, type_name, T10P10_MAIN_FILL, type_fill)
+
+        order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+        category_totals[type_name] += order_qty
+        category_rows[type_name] += 1
+
+    summary = _collect_decomposition_summary(sheet, headers)
+    write_decomposition_detail_sheet(workbook, main_sheet_name, summary, logger)
+    logger.info(
+        "T10/P10排单分解完成："
+        f"{T10P10_WASH_TYPE} {category_rows[T10P10_WASH_TYPE]} 行/{category_totals[T10P10_WASH_TYPE]}，"
+        f"{T10P10_DRYER_TYPE} {category_rows[T10P10_DRYER_TYPE]} 行/{category_totals[T10P10_DRYER_TYPE]}，"
+        f"跳过无法识别编码 {skipped_unknown_code_rows} 行。"
+    )
+    return DecomposeT10P10Result(
+        rolling_total=summary["rolling_total"],
+        wave_total=summary["wave_total"],
+        category_totals=category_totals,
+        category_rows=category_rows,
+        skipped_unknown_code_rows=skipped_unknown_code_rows,
+    )
+
+
+def decompose_c6_heat_pump_dryer(
+    workbook: Workbook,
+    main_sheet_name: str,
+    logger: ProcessingLogger,
+) -> DecomposeC6HeatPumpDryerResult:
+    sheet = workbook[main_sheet_name]
+    headers = _header_map(sheet)
+    _require_columns(
+        headers,
+        ["线体", "订单数", "备注", "物料编码", "类型", *DECOMPOSE_COLUMNS],
+        "主数据表",
+    )
+
+    category_totals: dict[str, Decimal] = {C6_HEAT_PUMP_DRYER_TYPE: Decimal("0")}
+    category_rows: dict[str, int] = {C6_HEAT_PUMP_DRYER_TYPE: 0}
+    skipped_non_dryer_rows = 0
+    skipped_unknown_code_rows = 0
+
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if _is_wave_line(line) or not _is_uncolored_for_decomposition(sheet, row_index, headers):
+            continue
+
+        remark = str(sheet.cell(row_index, headers["备注"]).value or "")
+        if "干衣机" not in remark:
+            continue
+
+        product_kind = _product_kind_from_material_code(sheet.cell(row_index, headers["物料编码"]).value)
+        if product_kind == "unknown":
+            skipped_unknown_code_rows += 1
+            continue
+        if product_kind != "dryer":
+            skipped_non_dryer_rows += 1
+            continue
+
+        _apply_decomposition_style(
+            sheet,
+            row_index,
+            headers,
+            C6_HEAT_PUMP_DRYER_TYPE,
+            C6_HEAT_PUMP_DRYER_MAIN_FILL,
+            C6_HEAT_PUMP_DRYER_TYPE_FILL,
+        )
+
+        order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+        category_totals[C6_HEAT_PUMP_DRYER_TYPE] += order_qty
+        category_rows[C6_HEAT_PUMP_DRYER_TYPE] += 1
+
+    summary = _collect_decomposition_summary(sheet, headers)
+    write_decomposition_detail_sheet(workbook, main_sheet_name, summary, logger)
+    logger.info(
+        "C6热泵干衣机排单分解完成："
+        f"{C6_HEAT_PUMP_DRYER_TYPE} {category_rows[C6_HEAT_PUMP_DRYER_TYPE]} 行/{category_totals[C6_HEAT_PUMP_DRYER_TYPE]}，"
+        f"跳过非605机型 {skipped_non_dryer_rows} 行，"
+        f"跳过无法识别编码 {skipped_unknown_code_rows} 行。"
+    )
+    return DecomposeC6HeatPumpDryerResult(
+        rolling_total=summary["rolling_total"],
+        wave_total=summary["wave_total"],
+        category_totals=category_totals,
+        category_rows=category_rows,
+        skipped_non_dryer_rows=skipped_non_dryer_rows,
+        skipped_unknown_code_rows=skipped_unknown_code_rows,
+    )
+
+
+def decompose_composite_penguin_c6(
+    workbook: Workbook,
+    main_sheet_name: str,
+    logger: ProcessingLogger,
+) -> DecomposeCompositePenguinC6Result:
+    sheet = workbook[main_sheet_name]
+    headers = _header_map(sheet)
+    _require_columns(
+        headers,
+        ["线体", "订单数", "备注", "物料编码", "物料描述", "类型", *DECOMPOSE_COLUMNS],
+        "主数据表",
+    )
+
+    category_totals: dict[str, Decimal] = {
+        COMPOSITE_DRY_TYPE: Decimal("0"),
+        COMPOSITE_WASH_TYPE: Decimal("0"),
+        PENGUIN_DRYER_TYPE: Decimal("0"),
+        PENGUIN_WASH_TYPE: Decimal("0"),
+        C6_WASH_TYPE: Decimal("0"),
+        C6_DRY_TYPE: Decimal("0"),
+    }
+    category_rows: dict[str, int] = {category: 0 for category in category_totals}
+    skipped_unknown_code_rows = 0
+    skipped_non_c6_dryer_rows = 0
+
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if _is_wave_line(line) or not _is_uncolored_for_decomposition(sheet, row_index, headers):
+            continue
+
+        remark = str(sheet.cell(row_index, headers["备注"]).value or "")
+        description = str(sheet.cell(row_index, headers["物料描述"]).value or "")
+        product_kind = _product_kind_from_material_code(sheet.cell(row_index, headers["物料编码"]).value)
+        if product_kind == "unknown":
+            if "复式" in remark or "企鹅" in remark or _is_c6_description(description):
+                skipped_unknown_code_rows += 1
+            continue
+
+        type_name = None
+        main_fill = None
+        type_fill = None
+
+        if "复式" in remark:
+            if product_kind == "dry":
+                type_name = COMPOSITE_DRY_TYPE
+                type_fill = COMPOSITE_DRY_TYPE_FILL
+            elif product_kind == "wash":
+                type_name = COMPOSITE_WASH_TYPE
+                type_fill = COMPOSITE_WASH_TYPE_FILL
+            main_fill = COMPOSITE_MAIN_FILL
+        elif "企鹅" in remark:
+            if product_kind == "dryer":
+                type_name = PENGUIN_DRYER_TYPE
+                type_fill = PENGUIN_DRYER_TYPE_FILL
+            else:
+                type_name = PENGUIN_WASH_TYPE
+                type_fill = PENGUIN_WASH_TYPE_FILL
+            main_fill = PENGUIN_MAIN_FILL
+        elif _is_c6_description(description):
+            if product_kind == "dryer":
+                skipped_non_c6_dryer_rows += 1
+                continue
+            if product_kind == "dry":
+                type_name = C6_DRY_TYPE
+                type_fill = C6_DRY_TYPE_FILL
+            elif product_kind == "wash":
+                type_name = C6_WASH_TYPE
+                type_fill = C6_WASH_TYPE_FILL
+            main_fill = C6_MAIN_FILL
+
+        if not type_name or not main_fill or not type_fill:
+            continue
+
+        _apply_decomposition_style(sheet, row_index, headers, type_name, main_fill, type_fill)
+        order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+        category_totals[type_name] += order_qty
+        category_rows[type_name] += 1
+
+    summary = _collect_decomposition_summary(sheet, headers)
+    write_decomposition_detail_sheet(workbook, main_sheet_name, summary, logger)
+    logger.info(
+        "复式/企鹅/C6排单分解完成："
+        f"{COMPOSITE_DRY_TYPE} {category_rows[COMPOSITE_DRY_TYPE]} 行/{category_totals[COMPOSITE_DRY_TYPE]}，"
+        f"{COMPOSITE_WASH_TYPE} {category_rows[COMPOSITE_WASH_TYPE]} 行/{category_totals[COMPOSITE_WASH_TYPE]}，"
+        f"{PENGUIN_DRYER_TYPE} {category_rows[PENGUIN_DRYER_TYPE]} 行/{category_totals[PENGUIN_DRYER_TYPE]}，"
+        f"{PENGUIN_WASH_TYPE} {category_rows[PENGUIN_WASH_TYPE]} 行/{category_totals[PENGUIN_WASH_TYPE]}，"
+        f"{C6_WASH_TYPE} {category_rows[C6_WASH_TYPE]} 行/{category_totals[C6_WASH_TYPE]}，"
+        f"{C6_DRY_TYPE} {category_rows[C6_DRY_TYPE]} 行/{category_totals[C6_DRY_TYPE]}，"
+        f"跳过C6干衣机 {skipped_non_c6_dryer_rows} 行，"
+        f"跳过无法识别编码 {skipped_unknown_code_rows} 行。"
+    )
+    return DecomposeCompositePenguinC6Result(
+        rolling_total=summary["rolling_total"],
+        wave_total=summary["wave_total"],
+        category_totals=category_totals,
+        category_rows=category_rows,
+        skipped_unknown_code_rows=skipped_unknown_code_rows,
+        skipped_non_c6_dryer_rows=skipped_non_c6_dryer_rows,
+    )
+
+
+def decompose_rolling_final(
+    workbook: Workbook,
+    main_sheet_name: str,
+    logger: ProcessingLogger,
+) -> DecomposeRollingFinalResult:
+    sheet = workbook[main_sheet_name]
+    headers = _header_map(sheet)
+    _require_columns(
+        headers,
+        ["线体", "渠道", "订单数", "备注", "物料编码", "类型", *DECOMPOSE_COLUMNS],
+        "主数据表",
+    )
+
+    category_totals: dict[str, Decimal] = {
+        ORDINARY_DRY_TYPE: Decimal("0"),
+        DOMESTIC_TYPE: Decimal("0"),
+        EXPORT_TYPE: Decimal("0"),
+    }
+    category_rows: dict[str, int] = {category: 0 for category in category_totals}
+
+    _clear_wave_basic_classifications(sheet, headers)
+
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if _is_wave_line(line) or not _is_uncolored_for_decomposition(sheet, row_index, headers):
+            continue
+
+        remark = str(sheet.cell(row_index, headers["备注"]).value or "")
+        channel = str(sheet.cell(row_index, headers["渠道"]).value or "").strip()
+        product_kind = _product_kind_from_material_code(sheet.cell(row_index, headers["物料编码"]).value)
+
+        type_name = None
+        main_fill = None
+        type_fill = None
+        if "烘干" in remark and product_kind == "dry":
+            type_name = ORDINARY_DRY_TYPE
+            main_fill = ORDINARY_DRY_MAIN_FILL
+            type_fill = ORDINARY_DRY_TYPE_FILL
+        elif channel in {"CBG", "国内ODM"}:
+            type_name = DOMESTIC_TYPE
+            main_fill = DOMESTIC_MAIN_FILL
+            type_fill = DOMESTIC_TYPE_FILL
+        elif channel in {"海外BG", "海外ODM"}:
+            type_name = EXPORT_TYPE
+            main_fill = EXPORT_MAIN_FILL
+            type_fill = EXPORT_TYPE_FILL
+
+        if not type_name or not main_fill or not type_fill:
+            continue
+
+        _apply_decomposition_style(sheet, row_index, headers, type_name, main_fill, type_fill)
+        order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+        category_totals[type_name] += order_qty
+        category_rows[type_name] += 1
+
+    summary = _collect_decomposition_summary(sheet, headers)
+    remaining_rows, remaining_total = _remaining_unclassified_rolling(sheet, headers)
+    rolling_decomposition_total = _rolling_decomposition_total(summary["rolling_types"])
+    rolling_gap = summary["rolling_total"] - rolling_decomposition_total
+    write_decomposition_detail_sheet(workbook, main_sheet_name, summary, logger)
+    logger.info(
+        "滚筒排单分解收尾完成："
+        f"{ORDINARY_DRY_TYPE} {category_rows[ORDINARY_DRY_TYPE]} 行/{category_totals[ORDINARY_DRY_TYPE]}，"
+        f"{DOMESTIC_TYPE} {category_rows[DOMESTIC_TYPE]} 行/{category_totals[DOMESTIC_TYPE]}，"
+        f"{EXPORT_TYPE} {category_rows[EXPORT_TYPE]} 行/{category_totals[EXPORT_TYPE]}，"
+        f"滚筒剩余未分类 {remaining_rows} 行/{remaining_total}，"
+        f"滚筒分解合计 {rolling_decomposition_total}，滚筒总数 {summary['rolling_total']}，差异 {rolling_gap}。"
+    )
+    return DecomposeRollingFinalResult(
+        rolling_total=summary["rolling_total"],
+        wave_total=summary["wave_total"],
+        category_totals=category_totals,
+        category_rows=category_rows,
+        remaining_unclassified_rows=remaining_rows,
+        remaining_unclassified_total=remaining_total,
+        rolling_decomposition_total=rolling_decomposition_total,
+        rolling_gap=rolling_gap,
+    )
+
+
+def decompose_wave_basic(
+    workbook: Workbook,
+    values_workbook: Workbook,
+    main_sheet_name: str,
+    logger: ProcessingLogger,
+) -> DecomposeWaveBasicResult:
+    sheet = workbook[main_sheet_name]
+    values_sheet = values_workbook[main_sheet_name]
+    headers = _header_map(sheet)
+    _require_columns(
+        headers,
+        ["线体", "订单数", "备注", "系数", "钣金型号", "物料描述", "类型", *DECOMPOSE_COLUMNS],
+        "主数据表",
+    )
+
+    category_totals: dict[str, Decimal] = {
+        "CKD": Decimal("0"),
+        WAVE_LG_TYPE: Decimal("0"),
+        WAVE_PLASTIC_DOMESTIC_TYPE: Decimal("0"),
+        WAVE_P7P9_TYPE: Decimal("0"),
+        "SKD": Decimal("0"),
+    }
+    category_rows: dict[str, int] = {category: 0 for category in category_totals}
+
+    _clear_wave_basic_classifications(sheet, headers)
+
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if not _is_wave_line(line) or not _is_uncolored_for_decomposition(sheet, row_index, headers):
+            continue
+
+        remark = str(sheet.cell(row_index, headers["备注"]).value or "")
+        remark_upper = remark.upper()
+        coefficient = _to_decimal_or_none(values_sheet.cell(row_index, headers["系数"]).value)
+        if coefficient is None:
+            coefficient = _to_decimal_or_none(sheet.cell(row_index, headers["系数"]).value)
+        sheet_metal = str(
+            values_sheet.cell(row_index, headers["钣金型号"]).value
+            or sheet.cell(row_index, headers["钣金型号"]).value
+            or ""
+        )
+        description = str(
+            values_sheet.cell(row_index, headers["物料描述"]).value
+            or sheet.cell(row_index, headers["物料描述"]).value
+            or ""
+        )
+
+        type_name = None
+        main_fill = None
+        type_fill = None
+        if "CKD" in remark_upper:
+            type_name = "CKD"
+            main_fill = WAVE_CKD_MAIN_FILL
+            type_fill = WAVE_CKD_TYPE_FILL
+        elif "LG" in remark_upper:
+            type_name = WAVE_LG_TYPE
+            main_fill = WAVE_LG_MAIN_FILL
+            type_fill = WAVE_LG_TYPE_FILL
+        elif coefficient is not None and coefficient < Decimal("1.217"):
+            type_name = WAVE_PLASTIC_DOMESTIC_TYPE
+            main_fill = WAVE_PLASTIC_MAIN_FILL
+            type_fill = WAVE_PLASTIC_TYPE_FILL
+        elif _is_wave_p7p9_candidate(sheet_metal, description):
+            type_name = WAVE_P7P9_TYPE
+            main_fill = WAVE_P7P9_MAIN_FILL
+            type_fill = WAVE_P7P9_TYPE_FILL
+        elif "SKD" in remark_upper:
+            type_name = "SKD"
+            main_fill = WAVE_SKD_MAIN_FILL
+            type_fill = WAVE_SKD_TYPE_FILL
+
+        if not type_name or not main_fill or not type_fill:
+            continue
+
+        _apply_decomposition_style(sheet, row_index, headers, type_name, main_fill, type_fill)
+        order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+        category_totals[type_name] += order_qty
+        category_rows[type_name] += 1
+
+    summary = _collect_decomposition_summary(sheet, headers)
+    remaining_rows, remaining_total = _remaining_unclassified_wave(sheet, headers)
+    write_decomposition_detail_sheet(workbook, main_sheet_name, summary, logger)
+    logger.info(
+        "波轮排单分解第一组规则完成："
+        f"CKD {category_rows['CKD']} 行/{category_totals['CKD']}，"
+        f"{WAVE_LG_TYPE} {category_rows[WAVE_LG_TYPE]} 行/{category_totals[WAVE_LG_TYPE]}，"
+        f"{WAVE_PLASTIC_DOMESTIC_TYPE} {category_rows[WAVE_PLASTIC_DOMESTIC_TYPE]} 行/{category_totals[WAVE_PLASTIC_DOMESTIC_TYPE]}，"
+        f"{WAVE_P7P9_TYPE} {category_rows[WAVE_P7P9_TYPE]} 行/{category_totals[WAVE_P7P9_TYPE]}，"
+        f"SKD {category_rows['SKD']} 行/{category_totals['SKD']}，"
+        f"波轮剩余未分类 {remaining_rows} 行/{remaining_total}。"
+    )
+    return DecomposeWaveBasicResult(
+        rolling_total=summary["rolling_total"],
+        wave_total=summary["wave_total"],
+        category_totals=category_totals,
+        category_rows=category_rows,
+        remaining_unclassified_rows=remaining_rows,
+        remaining_unclassified_total=remaining_total,
+    )
+
+
+def decompose_wave_final(
+    workbook: Workbook,
+    values_workbook: Workbook,
+    main_sheet_name: str,
+    logger: ProcessingLogger,
+) -> DecomposeWaveFinalResult:
+    sheet = workbook[main_sheet_name]
+    values_sheet = values_workbook[main_sheet_name]
+    headers = _header_map(sheet)
+    _require_columns(
+        headers,
+        ["线体", "渠道", "订单数", "系数", "物料描述", "类型", *DECOMPOSE_COLUMNS],
+        "主数据表",
+    )
+
+    category_totals: dict[str, Decimal] = {
+        WAVE_DOMESTIC_INVERTER_TYPE: Decimal("0"),
+        WAVE_EXPORT_INVERTER_TYPE: Decimal("0"),
+        WAVE_DOMESTIC_IRON_TYPE: Decimal("0"),
+        WAVE_EXPORT_IRON_TYPE: Decimal("0"),
+    }
+    category_rows: dict[str, int] = {category: 0 for category in category_totals}
+
+    _clear_wave_final_classifications(sheet, headers)
+
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if not _is_wave_line(line) or not _is_uncolored_for_decomposition(sheet, row_index, headers):
+            continue
+        if str(sheet.cell(row_index, headers["类型"]).value or "").strip():
+            continue
+
+        channel = str(sheet.cell(row_index, headers["渠道"]).value or "").strip()
+        description = str(
+            values_sheet.cell(row_index, headers["物料描述"]).value
+            or sheet.cell(row_index, headers["物料描述"]).value
+            or ""
+        )
+        coefficient = _to_decimal_or_none(values_sheet.cell(row_index, headers["系数"]).value)
+        if coefficient is None:
+            coefficient = _to_decimal_or_none(sheet.cell(row_index, headers["系数"]).value)
+
+        type_name = None
+        main_fill = None
+        type_fill = None
+        if channel in {"CBG", "国内ODM"} and _is_wave_domestic_inverter_description(description):
+            type_name = WAVE_DOMESTIC_INVERTER_TYPE
+            main_fill = WAVE_DOMESTIC_INVERTER_MAIN_FILL
+            type_fill = WAVE_DOMESTIC_INVERTER_TYPE_FILL
+        elif channel in {"海外BG", "海外ODM"} and coefficient is not None and coefficient > Decimal("2"):
+            type_name = WAVE_EXPORT_INVERTER_TYPE
+            main_fill = WAVE_EXPORT_INVERTER_MAIN_FILL
+            type_fill = WAVE_EXPORT_INVERTER_TYPE_FILL
+        elif channel in {"CBG", "国内ODM"}:
+            type_name = WAVE_DOMESTIC_IRON_TYPE
+            main_fill = WAVE_DOMESTIC_IRON_MAIN_FILL
+            type_fill = WAVE_DOMESTIC_IRON_TYPE_FILL
+        elif channel in {"海外BG", "海外ODM"}:
+            type_name = WAVE_EXPORT_IRON_TYPE
+            main_fill = WAVE_EXPORT_IRON_MAIN_FILL
+            type_fill = WAVE_EXPORT_IRON_TYPE_FILL
+
+        if not type_name or not main_fill or not type_fill:
+            continue
+
+        _apply_decomposition_style(sheet, row_index, headers, type_name, main_fill, type_fill)
+        order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+        category_totals[type_name] += order_qty
+        category_rows[type_name] += 1
+
+    summary = _collect_decomposition_summary(sheet, headers)
+    remaining_rows, remaining_total = _remaining_unclassified_wave(sheet, headers)
+    wave_decomposition_total = _wave_decomposition_total(summary["wave_types"])
+    wave_gap = summary["wave_total"] - wave_decomposition_total
+    write_decomposition_detail_sheet(workbook, main_sheet_name, summary, logger)
+    logger.info(
+        "波轮排单分解收尾规则完成："
+        f"{WAVE_DOMESTIC_INVERTER_TYPE} {category_rows[WAVE_DOMESTIC_INVERTER_TYPE]} 行/{category_totals[WAVE_DOMESTIC_INVERTER_TYPE]}，"
+        f"{WAVE_EXPORT_INVERTER_TYPE} {category_rows[WAVE_EXPORT_INVERTER_TYPE]} 行/{category_totals[WAVE_EXPORT_INVERTER_TYPE]}，"
+        f"{WAVE_DOMESTIC_IRON_TYPE} {category_rows[WAVE_DOMESTIC_IRON_TYPE]} 行/{category_totals[WAVE_DOMESTIC_IRON_TYPE]}，"
+        f"{WAVE_EXPORT_IRON_TYPE} {category_rows[WAVE_EXPORT_IRON_TYPE]} 行/{category_totals[WAVE_EXPORT_IRON_TYPE]}，"
+        f"波轮剩余未分类 {remaining_rows} 行/{remaining_total}，"
+        f"波轮分解合计 {wave_decomposition_total}，波轮总数 {summary['wave_total']}，差异 {wave_gap}。"
+    )
+    return DecomposeWaveFinalResult(
+        rolling_total=summary["rolling_total"],
+        wave_total=summary["wave_total"],
+        category_totals=category_totals,
+        category_rows=category_rows,
+        remaining_unclassified_rows=remaining_rows,
+        remaining_unclassified_total=remaining_total,
+        wave_decomposition_total=wave_decomposition_total,
+        wave_gap=wave_gap,
+    )
+
+
 def write_decomposition_detail_sheet(
     workbook: Workbook,
     main_sheet_name: str,
     summary: dict[str, Any],
     logger: ProcessingLogger,
 ) -> None:
+    preserved_styles = _capture_detail_sheet_styles(workbook)
     remove_sheet_if_exists(workbook, DETAIL_SHEET_NAME)
     sheet = workbook.create_sheet(DETAIL_SHEET_NAME)
 
@@ -388,7 +1102,7 @@ def write_decomposition_detail_sheet(
                 rolling_label,
                 _rolling_value_for_label(rolling_label, rolling_types),
                 wave_label,
-                _number_or_int(wave_types.get(wave_label, Decimal("0"))) if wave_label else None,
+                _wave_value_for_label(wave_label, wave_types),
             ]
         )
     rows.append(["合计", f"=SUM(B5:B{3 + len(ROLLING_LABELS)})", "合计", f"=SUM(D4:D{3 + len(WAVE_LABELS)})"])
@@ -400,8 +1114,52 @@ def write_decomposition_detail_sheet(
     sheet.merge_cells("A2:B2")
     sheet.merge_cells("C2:D2")
     _style_decomposition_sheet(sheet)
+    _apply_preserved_detail_sheet_styles(sheet, preserved_styles)
     _move_sheet_after(workbook, DETAIL_SHEET_NAME, main_sheet_name)
     logger.info(f"已创建“{DETAIL_SHEET_NAME}”，并写入滚筒/波轮总数与当前排单分解统计。")
+
+
+def _capture_detail_sheet_styles(workbook: Workbook) -> dict[tuple[str, str], list[dict[str, Any]]]:
+    if DETAIL_SHEET_NAME not in workbook.sheetnames:
+        return {}
+
+    sheet = workbook[DETAIL_SHEET_NAME]
+    styles: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for row_index in range(1, sheet.max_row + 1):
+        for side, label_col in (("rolling", 1), ("wave", 3)):
+            label = sheet.cell(row_index, label_col).value
+            if label is None:
+                continue
+            styles[(side, str(label))] = [
+                _capture_cell_style(sheet.cell(row_index, label_col)),
+                _capture_cell_style(sheet.cell(row_index, label_col + 1)),
+            ]
+    return styles
+
+
+def _capture_cell_style(cell) -> dict[str, Any]:
+    return {
+        "fill": copy(cell.fill),
+        "font": copy(cell.font),
+    }
+
+
+def _apply_preserved_detail_sheet_styles(sheet: Worksheet, styles: dict[tuple[str, str], list[dict[str, Any]]]) -> None:
+    if not styles:
+        return
+
+    for row_index in range(1, sheet.max_row + 1):
+        for side, label_col in (("rolling", 1), ("wave", 3)):
+            label = sheet.cell(row_index, label_col).value
+            if label is None:
+                continue
+            saved_styles = styles.get((side, str(label)))
+            if not saved_styles:
+                continue
+            for offset, saved_style in enumerate(saved_styles):
+                cell = sheet.cell(row_index, label_col + offset)
+                cell.fill = copy(saved_style["fill"])
+                cell.font = copy(saved_style["font"])
 
 
 def _apply_skd_style(sheet: Worksheet, row_index: int, headers: dict[str, int], type_name: str, is_dry: bool) -> None:
@@ -434,6 +1192,31 @@ def _apply_decomposition_style(
     type_cell.value = type_name
     type_cell.fill = type_fill
     _set_font_for_fill(type_cell, type_fill_rgb)
+
+
+def _clear_wave_basic_classifications(sheet: Worksheet, headers: dict[str, int]) -> None:
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        type_cell = sheet.cell(row_index, headers["类型"])
+        if not _is_wave_line(line):
+            continue
+        for field in DECOMPOSE_COLUMNS:
+            cell = sheet.cell(row_index, headers[field])
+            cell.fill = PatternFill(fill_type=None)
+        type_cell.value = None
+
+
+def _clear_wave_final_classifications(sheet: Worksheet, headers: dict[str, int]) -> None:
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        type_cell = sheet.cell(row_index, headers["类型"])
+        type_name = str(type_cell.value or "").strip()
+        if not _is_wave_line(line) or type_name not in WAVE_FINAL_TYPES:
+            continue
+        for field in DECOMPOSE_COLUMNS:
+            cell = sheet.cell(row_index, headers[field])
+            cell.fill = PatternFill(fill_type=None)
+        type_cell.value = None
 
 
 def _is_uncolored_for_decomposition(sheet: Worksheet, row_index: int, headers: dict[str, int]) -> bool:
@@ -470,7 +1253,7 @@ def _style_decomposition_sheet(sheet: Worksheet) -> None:
         "C6热泵干衣机",
         "复式烘干",
         "C6单洗",
-        "C6Q10烘干",
+        "C6烘干",
         "普通烘干",
         "内销",
         "外销",
@@ -527,9 +1310,75 @@ def _rolling_value_for_label(label: str | None, rolling_types: dict[str, Decimal
         return None
     if label == "SKD总数(包含烘干)":
         value = rolling_types.get("SKD", Decimal("0")) + rolling_types.get("SKD烘干", Decimal("0"))
+    elif label == "内销":
+        value = rolling_types.get("内销", Decimal("0")) + rolling_types.get(DOMESTIC_TYPE, Decimal("0"))
     else:
         value = rolling_types.get(label, Decimal("0"))
     return _number_or_int(value)
+
+
+def _wave_value_for_label(label: str | None, wave_types: dict[str, Decimal]):
+    if not label:
+        return None
+    if label == WAVE_P7P9_LABEL:
+        value = wave_types.get(WAVE_P7P9_LABEL, Decimal("0")) + wave_types.get(WAVE_P7P9_TYPE, Decimal("0"))
+    else:
+        value = wave_types.get(label, Decimal("0"))
+    return _number_or_int(value)
+
+
+def _wave_decomposition_total(wave_types: dict[str, Decimal]) -> Decimal:
+    total = Decimal("0")
+    for label in WAVE_LABELS:
+        if label == WAVE_P7P9_LABEL:
+            total += wave_types.get(WAVE_P7P9_LABEL, Decimal("0")) + wave_types.get(WAVE_P7P9_TYPE, Decimal("0"))
+        else:
+            total += wave_types.get(label, Decimal("0"))
+    return total
+
+
+def _rolling_decomposition_total(rolling_types: dict[str, Decimal]) -> Decimal:
+    total = Decimal("0")
+    for label in ROLLING_LABELS:
+        if label == "SKD烘干":
+            continue
+        if label == "SKD总数(包含烘干)":
+            total += rolling_types.get("SKD", Decimal("0")) + rolling_types.get("SKD烘干", Decimal("0"))
+        elif label == "内销":
+            total += rolling_types.get("内销", Decimal("0")) + rolling_types.get(DOMESTIC_TYPE, Decimal("0"))
+        else:
+            total += rolling_types.get(label, Decimal("0"))
+    return total
+
+
+def _remaining_unclassified_rolling(sheet: Worksheet, headers: dict[str, int]) -> tuple[int, Decimal]:
+    rows = 0
+    total = Decimal("0")
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if _is_wave_line(line):
+            continue
+        type_name = str(sheet.cell(row_index, headers["类型"]).value or "").strip()
+        if type_name:
+            continue
+        rows += 1
+        total += _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+    return rows, total
+
+
+def _remaining_unclassified_wave(sheet: Worksheet, headers: dict[str, int]) -> tuple[int, Decimal]:
+    rows = 0
+    total = Decimal("0")
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if not _is_wave_line(line):
+            continue
+        type_name = str(sheet.cell(row_index, headers["类型"]).value or "").strip()
+        if type_name:
+            continue
+        rows += 1
+        total += _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+    return rows, total
 
 
 def _product_kind_from_material_code(value: Any) -> str:
@@ -562,6 +1411,22 @@ def _is_t7p7t5p5_dreame_description(description: str) -> bool:
 def _is_t9p9_description(description: str) -> bool:
     first_token = _description_first_token(description)
     return _contains_series_token(first_token, ("T9", "P9"))
+
+
+def _is_c6_description(description: str) -> bool:
+    return "C6" in _description_first_token(description)
+
+
+def _is_wave_p7p9_candidate(sheet_metal: str, description: str) -> bool:
+    sheet_metal_text = str(sheet_metal or "").upper()
+    if "P7" in sheet_metal_text or "P9" in sheet_metal_text:
+        return True
+    return _contains_series_token(_description_first_token(description), ("P7", "P9"))
+
+
+def _is_wave_domestic_inverter_description(description: str) -> bool:
+    text = str(description or "").upper()
+    return "DMP" in text or "BMP" in text or "DP" in text
 
 
 def _description_first_token(description: str) -> str:
@@ -624,6 +1489,15 @@ def _to_decimal(value: Any) -> Decimal:
         return Decimal(str(value).replace(",", "").strip())
     except (InvalidOperation, ValueError):
         return Decimal("0")
+
+
+def _to_decimal_or_none(value: Any) -> Decimal | None:
+    if value is None or value == "":
+        return None
+    try:
+        return Decimal(str(value).replace(",", ""))
+    except (InvalidOperation, ValueError):
+        return None
 
 
 def _number_or_int(value: Decimal):
