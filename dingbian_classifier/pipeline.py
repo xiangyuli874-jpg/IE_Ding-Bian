@@ -18,6 +18,7 @@ from .decomposition import (
     decompose_t10p10,
     decompose_wave_basic,
     decompose_wave_final,
+    write_extra_order_summary,
 )
 from .excel_repair import resave_with_excel_if_available
 from .excel_io import build_output_path, copy_workbook, load_workbook_pair, move_auxiliary_sheets_after, read_main_table
@@ -201,6 +202,18 @@ def run(
 
     if stage == "decompose-wave-final":
         decompose_wave_final(formula_wb, values_wb, target_sheet_name, logger)
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        set_active_sheet(formula_wb, target_sheet_name, logger)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "decompose-extra-summary":
+        write_extra_order_summary(formula_wb, values_wb, target_sheet_name, logger)
         logger.info(f"即将保存处理结果：{output_path}")
         move_auxiliary_sheets_after(formula_wb, target_sheet_name)
         set_active_sheet(formula_wb, target_sheet_name, logger)

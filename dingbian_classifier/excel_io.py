@@ -58,6 +58,7 @@ def remove_sheet_if_exists(workbook: Workbook, sheet_name: str) -> None:
 
 AUXILIARY_SHEET_ORDER = [
     "排单分解表明细",
+    "各线体分类明细表",
     "系数补充",
     "系数查询表",
     "系数仍缺失",

@@ -18,7 +18,10 @@ from .exceptions import MissingRequiredFieldsError
 from .logger import ProcessingLogger
 
 DETAIL_SHEET_NAME = "排单分解表明细"
+LINE_CLASSIFICATION_SHEET_NAME = "各线体分类明细表"
 WAVE_LINES = {"B线", "B线夜", "C线", "C线夜"}
+ROLLING_LINE_ORDER = ["A线", "A线夜", "D线", "D线夜", "E线", "H线"]
+WAVE_LINE_ORDER = ["B线", "B线夜", "C线", "C线夜"]
 DECOMPOSE_COLUMNS = ["基本开始日期", "备注", "类型"]
 
 SKD_MAIN_FILL = "00B050"
@@ -255,6 +258,54 @@ class DecomposeWaveFinalResult:
     remaining_unclassified_total: Decimal = Decimal("0")
     wave_decomposition_total: Decimal = Decimal("0")
     wave_gap: Decimal = Decimal("0")
+
+
+@dataclass(frozen=True)
+class ExtraOrderSummaryRule:
+    name: str
+    scope: str
+    fill_rgb: str
+    criteria: str
+
+
+@dataclass
+class ExtraOrderSummaryResult:
+    category_totals: dict[str, Decimal] = field(default_factory=dict)
+    category_rows: dict[str, int] = field(default_factory=dict)
+
+
+EXTRA_ORDER_SUMMARY_RULES = [
+    ExtraOrderSummaryRule(
+        "锥形筒",
+        "rolling",
+        "FFF2CC",
+        "滚筒线；钣金型号含“锥形筒”",
+    ),
+    ExtraOrderSummaryRule(
+        "波轮特殊内筒-10kg和9升10内筒",
+        "wave",
+        "D9EAD3",
+        "波轮线；钣金型号含“10kg波轮”或“9升10”",
+    ),
+    ExtraOrderSummaryRule(
+        "波轮特殊内筒-8升9内筒",
+        "wave",
+        "DDEBF7",
+        "波轮线；钣金型号含“8升9”",
+    ),
+    ExtraOrderSummaryRule(
+        "波轮箱体-10kg",
+        "wave",
+        "EADCF8",
+        "波轮线；钣金型号含“10kg”或“10KG”",
+    ),
+    ExtraOrderSummaryRule(
+        "波轮箱体-彩板",
+        "wave",
+        "FCE4D6",
+        "波轮线；钣金型号含“PCM”；剔除波轮CKD",
+    ),
+]
 
 
 def decompose_skd(workbook: Workbook, main_sheet_name: str, logger: ProcessingLogger) -> DecomposeSkdResult:
@@ -1073,6 +1124,68 @@ def decompose_wave_final(
     )
 
 
+def write_extra_order_summary(
+    workbook: Workbook,
+    values_workbook: Workbook,
+    main_sheet_name: str,
+    logger: ProcessingLogger,
+) -> ExtraOrderSummaryResult:
+    sheet = workbook[main_sheet_name]
+    values_sheet = values_workbook[main_sheet_name]
+    headers = _header_map(sheet)
+    _require_columns(headers, ["线体", "钣金型号", "订单数", "类型"], "主数据表")
+
+    if DETAIL_SHEET_NAME not in workbook.sheetnames and "类型" in headers:
+        summary = _collect_decomposition_summary(sheet, headers)
+        write_decomposition_detail_sheet(workbook, main_sheet_name, summary, logger)
+    elif DETAIL_SHEET_NAME not in workbook.sheetnames:
+        workbook.create_sheet(DETAIL_SHEET_NAME)
+        _move_sheet_after(workbook, DETAIL_SHEET_NAME, main_sheet_name)
+        logger.warning(f"未找到“{DETAIL_SHEET_NAME}”和“类型”列，已仅创建右侧额外订单信息汇总表。")
+
+    detail_sheet = workbook[DETAIL_SHEET_NAME]
+    category_totals = {rule.name: Decimal("0") for rule in EXTRA_ORDER_SUMMARY_RULES}
+    category_rows = {rule.name: 0 for rule in EXTRA_ORDER_SUMMARY_RULES}
+    _clear_extra_summary_metal_fills(sheet, headers)
+
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        metal_model = str(
+            values_sheet.cell(row_index, headers["钣金型号"]).value
+            or sheet.cell(row_index, headers["钣金型号"]).value
+            or ""
+        )
+        type_name = str(sheet.cell(row_index, headers["类型"]).value or "").strip()
+        order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+        matched_rules = [
+            rule
+            for rule in EXTRA_ORDER_SUMMARY_RULES
+            if _matches_extra_order_rule(rule, line, metal_model, type_name)
+        ]
+        if not matched_rules:
+            continue
+
+        for rule in matched_rules:
+            category_totals[rule.name] += order_qty
+            category_rows[rule.name] += 1
+
+        first_rule = matched_rules[0]
+        metal_cell = sheet.cell(row_index, headers["钣金型号"])
+        metal_cell.fill = PatternFill(fill_type="solid", fgColor=first_rule.fill_rgb)
+        _set_font_for_fill(metal_cell, first_rule.fill_rgb)
+
+    _write_extra_order_summary_table(detail_sheet, category_rows, category_totals)
+    write_line_classification_detail_sheet(workbook, main_sheet_name, headers, logger)
+    logger.info(
+        "额外订单信息汇总完成："
+        + "；".join(
+            f"{rule.name} {category_rows[rule.name]} 行/{category_totals[rule.name]}"
+            for rule in EXTRA_ORDER_SUMMARY_RULES
+        )
+    )
+    return ExtraOrderSummaryResult(category_totals=category_totals, category_rows=category_rows)
+
+
 def write_decomposition_detail_sheet(
     workbook: Workbook,
     main_sheet_name: str,
@@ -1117,6 +1230,46 @@ def write_decomposition_detail_sheet(
     _apply_preserved_detail_sheet_styles(sheet, preserved_styles)
     _move_sheet_after(workbook, DETAIL_SHEET_NAME, main_sheet_name)
     logger.info(f"已创建“{DETAIL_SHEET_NAME}”，并写入滚筒/波轮总数与当前排单分解统计。")
+
+
+def write_line_classification_detail_sheet(
+    workbook: Workbook,
+    main_sheet_name: str,
+    headers: dict[str, int],
+    logger: ProcessingLogger,
+) -> None:
+    sheet = workbook[main_sheet_name]
+    remove_sheet_if_exists(workbook, LINE_CLASSIFICATION_SHEET_NAME)
+    detail_sheet = workbook.create_sheet(LINE_CLASSIFICATION_SHEET_NAME)
+
+    rolling_line_types = _collect_line_type_totals(sheet, headers, ROLLING_LINE_ORDER)
+    wave_line_types = _collect_line_type_totals(sheet, headers, WAVE_LINE_ORDER)
+    rolling_line_totals = _collect_line_totals(sheet, headers, ROLLING_LINE_ORDER)
+    wave_line_totals = _collect_line_totals(sheet, headers, WAVE_LINE_ORDER)
+
+    rolling_rows = _build_line_detail_rows(ROLLING_LABELS, ROLLING_LINE_ORDER, rolling_line_types, "rolling")
+    wave_rows = _build_line_detail_rows(WAVE_LABELS, WAVE_LINE_ORDER, wave_line_types, "wave")
+
+    row_index = 1
+    row_index = _write_line_detail_section(
+        detail_sheet,
+        row_index,
+        "滚筒各线体分类明细",
+        ROLLING_LINE_ORDER,
+        rolling_rows,
+        rolling_line_totals,
+    )
+    _write_line_detail_section(
+        detail_sheet,
+        row_index + 2,
+        "波轮各线体分类明细",
+        WAVE_LINE_ORDER,
+        wave_rows,
+        wave_line_totals,
+    )
+    _style_line_classification_detail_sheet(detail_sheet)
+    _move_sheet_after(workbook, LINE_CLASSIFICATION_SHEET_NAME, DETAIL_SHEET_NAME)
+    logger.info(f"已创建“{LINE_CLASSIFICATION_SHEET_NAME}”，并按线体汇总各分类订单数。")
 
 
 def _capture_detail_sheet_styles(workbook: Workbook) -> dict[tuple[str, str], list[dict[str, Any]]]:
@@ -1271,6 +1424,249 @@ def _style_decomposition_sheet(sheet: Worksheet) -> None:
     sheet.column_dimensions["B"].width = 14
     sheet.column_dimensions["C"].width = 22
     sheet.column_dimensions["D"].width = 14
+
+
+def _write_extra_order_summary_table(
+    sheet: Worksheet,
+    category_rows: dict[str, int],
+    category_totals: dict[str, Decimal],
+) -> None:
+    start_col = 6
+    end_col = 9
+    max_row = max(sheet.max_row, len(EXTRA_ORDER_SUMMARY_RULES) + 2)
+    for merged_range in list(sheet.merged_cells.ranges):
+        if merged_range.min_col >= start_col and merged_range.max_col <= end_col:
+            sheet.unmerge_cells(str(merged_range))
+
+    for row in sheet.iter_rows(min_row=1, max_row=max_row, min_col=start_col, max_col=end_col):
+        for cell in row:
+            cell.value = None
+            cell.fill = PatternFill(fill_type=None)
+            cell.border = Border()
+            cell.font = Font(color="000000", bold=False)
+            cell.alignment = Alignment(horizontal="left", vertical="center")
+
+    rows = [
+        ["额外订单信息汇总", None, None, None],
+        ["补充项目", "数据行数", "订单数合计", "筛选口径"],
+    ]
+    for rule in EXTRA_ORDER_SUMMARY_RULES:
+        rows.append(
+            [
+                rule.name,
+                category_rows[rule.name],
+                _number_or_int(category_totals[rule.name]),
+                rule.criteria,
+            ]
+        )
+
+    for row_offset, row_values in enumerate(rows, start=1):
+        for col_offset, value in enumerate(row_values, start=start_col):
+            sheet.cell(row_offset, col_offset).value = value
+
+    sheet.merge_cells(start_row=1, start_column=start_col, end_row=1, end_column=end_col)
+    blue_fill = PatternFill(fill_type="solid", fgColor="0070C0")
+    header_fill = PatternFill(fill_type="solid", fgColor="D9E2F3")
+    thin = Side(style="thin", color="000000")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    for row in sheet.iter_rows(min_row=1, max_row=len(rows), min_col=start_col, max_col=end_col):
+        for cell in row:
+            cell.border = border
+            cell.alignment = Alignment(horizontal="center" if cell.row <= 2 else "left", vertical="center")
+            cell.font = Font(color="000000", bold=False)
+
+    for cell in sheet[1][start_col - 1 : end_col]:
+        cell.fill = blue_fill
+        cell.font = Font(color="FFFFFF", bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    for cell in sheet[2][start_col - 1 : end_col]:
+        cell.fill = header_fill
+        cell.font = Font(color="000000", bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    sheet.column_dimensions["F"].width = 34
+    sheet.column_dimensions["G"].width = 12
+    sheet.column_dimensions["H"].width = 14
+    sheet.column_dimensions["I"].width = 42
+
+
+def _collect_line_type_totals(
+    sheet: Worksheet,
+    headers: dict[str, int],
+    line_order: list[str],
+) -> dict[str, dict[str, Decimal]]:
+    totals = {line: {} for line in line_order}
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if line not in totals:
+            continue
+        type_name = str(sheet.cell(row_index, headers["类型"]).value or "").strip()
+        if not type_name:
+            continue
+        order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+        totals[line][type_name] = totals[line].get(type_name, Decimal("0")) + order_qty
+    return totals
+
+
+def _collect_line_totals(
+    sheet: Worksheet,
+    headers: dict[str, int],
+    line_order: list[str],
+) -> dict[str, Decimal]:
+    totals = {line: Decimal("0") for line in line_order}
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if line not in totals:
+            continue
+        totals[line] += _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+    return totals
+
+
+def _build_line_detail_rows(
+    labels: list[str],
+    line_order: list[str],
+    line_type_totals: dict[str, dict[str, Decimal]],
+    section: str,
+) -> list[list[Any]]:
+    rows: list[list[Any]] = []
+    for label in labels:
+        values = [
+            _line_category_value(label, line_type_totals[line], section)
+            for line in line_order
+        ]
+        rows.append([label, *values, sum(values, Decimal("0"))])
+    return rows
+
+
+def _line_category_value(label: str | None, type_totals: dict[str, Decimal], section: str) -> Decimal:
+    if not label:
+        return Decimal("0")
+    if section == "rolling":
+        if label == "SKD总数(包含烘干)":
+            return type_totals.get("SKD", Decimal("0")) + type_totals.get("SKD烘干", Decimal("0"))
+        if label == "内销":
+            return type_totals.get("内销", Decimal("0")) + type_totals.get(DOMESTIC_TYPE, Decimal("0"))
+        return type_totals.get(label, Decimal("0"))
+    if label == WAVE_P7P9_LABEL:
+        return type_totals.get(WAVE_P7P9_LABEL, Decimal("0")) + type_totals.get(WAVE_P7P9_TYPE, Decimal("0"))
+    return type_totals.get(label, Decimal("0"))
+
+
+def _write_line_detail_section(
+    sheet: Worksheet,
+    start_row: int,
+    title: str,
+    line_order: list[str],
+    rows: list[list[Any]],
+    line_totals: dict[str, Decimal],
+) -> int:
+    end_col = len(line_order) + 2
+    sheet.merge_cells(start_row=start_row, start_column=1, end_row=start_row, end_column=end_col)
+    sheet.cell(start_row, 1).value = title
+    header = ["分类名称", *line_order, "合计"]
+    for col_index, value in enumerate(header, start=1):
+        sheet.cell(start_row + 1, col_index).value = value
+
+    for row_offset, row_values in enumerate(rows, start=start_row + 2):
+        sheet.cell(row_offset, 1).value = row_values[0]
+        for col_index, value in enumerate(row_values[1:], start=2):
+            sheet.cell(row_offset, col_index).value = _number_or_int(value)
+
+    total_row = start_row + len(rows) + 2
+    sheet.cell(total_row, 1).value = "合计"
+    total = Decimal("0")
+    for col_index, line in enumerate(line_order, start=2):
+        value = line_totals[line]
+        sheet.cell(total_row, col_index).value = _number_or_int(value)
+        total += value
+    sheet.cell(total_row, end_col).value = _number_or_int(total)
+    return total_row
+
+
+def _style_line_classification_detail_sheet(sheet: Worksheet) -> None:
+    blue_fill = PatternFill(fill_type="solid", fgColor="0070C0")
+    header_fill = PatternFill(fill_type="solid", fgColor="D9E2F3")
+    total_fill = PatternFill(fill_type="solid", fgColor="E2F0D9")
+    thin = Side(style="thin", color="000000")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    for row in sheet.iter_rows(min_row=1, max_row=sheet.max_row, min_col=1, max_col=8):
+        for cell in row:
+            cell.border = border
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.font = Font(color="000000", bold=False)
+
+    for row_index in range(1, sheet.max_row + 1):
+        first_value = sheet.cell(row_index, 1).value
+        if first_value in {"滚筒各线体分类明细", "波轮各线体分类明细"}:
+            for cell in sheet[row_index]:
+                cell.fill = blue_fill
+                cell.font = Font(color="FFFFFF", bold=True)
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+        elif first_value == "分类名称":
+            for cell in sheet[row_index]:
+                cell.fill = header_fill
+                cell.font = Font(color="000000", bold=True)
+        elif first_value == "合计":
+            for cell in sheet[row_index]:
+                cell.fill = total_fill
+                cell.font = Font(color="000000", bold=True)
+
+    sheet.freeze_panes = "B3"
+    sheet.column_dimensions["A"].width = 34
+    for col_index in range(2, 9):
+        sheet.column_dimensions[get_column_letter(col_index)].width = 12
+
+
+def _clear_extra_summary_metal_fills(sheet: Worksheet, headers: dict[str, int]) -> None:
+    extra_fill_rgbs = {rule.fill_rgb.upper() for rule in EXTRA_ORDER_SUMMARY_RULES}
+    metal_col = headers["钣金型号"]
+    for row_index in range(2, sheet.max_row + 1):
+        cell = sheet.cell(row_index, metal_col)
+        if _fill_rgb(cell) not in extra_fill_rgbs:
+            continue
+        cell.fill = PatternFill(fill_type=None)
+        cell.font = copy(cell.font)
+        cell.font = Font(
+            name=cell.font.name,
+            sz=cell.font.sz,
+            bold=cell.font.bold,
+            italic=cell.font.italic,
+            vertAlign=cell.font.vertAlign,
+            underline=cell.font.underline,
+            strike=cell.font.strike,
+            color="000000",
+        )
+
+
+def _fill_rgb(cell) -> str | None:
+    color = cell.fill.fgColor
+    if cell.fill.fill_type is None or color is None or color.type != "rgb" or color.rgb is None:
+        return None
+    return str(color.rgb)[-6:].upper()
+
+
+def _matches_extra_order_rule(rule: ExtraOrderSummaryRule, line: str, metal_model: str, type_name: str) -> bool:
+    is_wave = _is_wave_line(line)
+    if rule.scope == "rolling" and is_wave:
+        return False
+    if rule.scope == "wave" and not is_wave:
+        return False
+
+    metal_text = str(metal_model or "")
+    metal_upper = metal_text.upper()
+    if rule.name == "锥形筒":
+        return "锥形筒" in metal_text
+    if rule.name == "波轮特殊内筒-10kg和9升10内筒":
+        return "10KG波轮" in metal_upper or "9升10" in metal_text
+    if rule.name == "波轮特殊内筒-8升9内筒":
+        return "8升9" in metal_text
+    if rule.name == "波轮箱体-10kg":
+        return "10KG" in metal_upper
+    if rule.name == "波轮箱体-彩板":
+        return "PCM" in metal_upper and type_name != "CKD"
+    return False
 
 
 def _collect_decomposition_summary(sheet: Worksheet, headers: dict[str, int]) -> dict[str, Any]:

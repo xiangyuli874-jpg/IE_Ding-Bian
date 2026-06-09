@@ -6,22 +6,25 @@
 
 - 自动查找周排产明细主工作表。
 - 生成系数、钣金型号等待补充工作表，支持查询表回填和人工回填。
-- 支持 SKD、滚筒备注、T7/P7/T5/P5/追觅、T9/P9、T10/P10、C6、复式、企鹅、滚筒收尾和波轮收尾等排单分解阶段。
+- 支持 SKD、滚筒备注、T7/P7/T5/P5/追觅、T9/P9、T10/P10、C6、复式、企鹅、滚筒收尾、波轮收尾和额外订单信息汇总等排单分解阶段。
 - 根据工作簿内的分类规则配置生成分类结果、未分类数据和分类汇总表。
+- 可生成“排单分解表明细”“各线体分类明细表”，并对额外订单信息命中的钣金型号列上色。
 - 在处理结果中写入处理日志，并保留有限数量的历史备份。
 - 清理旧结果时会跳过 Excel 打开的临时锁文件，避免误处理 `~$` 开头的临时文件。
+- 提供 `自动离线程序`，月底可双击启动并按配置自动执行月度处理流程。
 
 ## 项目结构
 
 ```text
 .
 ├── dingbian_classifier/      # 核心处理逻辑
+├── 自动离线程序/             # 月度离线启动工具
 ├── run_classifier.py         # 命令行入口
 ├── requirements.txt          # Python 依赖
 └── README.md                 # 项目说明
 ```
 
-`outputs/`、`__pycache__/`、Excel 业务数据和生成结果已通过 `.gitignore` 排除，不会默认提交到仓库。
+`outputs/`、`inputs/` 中的 Excel 文件、`自动离线程序/logs/`、`__pycache__/`、Excel 业务数据和生成结果已通过 `.gitignore` 排除，不会默认提交到仓库。
 
 ## 环境准备
 
@@ -85,6 +88,12 @@ python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outpu
 python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage classify
 ```
 
+生成额外订单信息汇总和各线体分类明细：
+
+```powershell
+python run_classifier.py --input "<已完成排单分解的当前结果.xlsx>" --output-dir "outputs" --stage decompose-extra-summary
+```
+
 ## 推荐排单分解顺序
 
 排单分解阶段会在主表中标记“类型”并刷新“排单分解表明细”。建议按下面顺序逐步处理，并将每一步输出作为下一步输入：
@@ -101,7 +110,42 @@ python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs"
 python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-rolling-final
 python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-wave-basic
 python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-wave-final
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-extra-summary
 ```
+
+`decompose-extra-summary` 依赖主表中的“类型”列，适合放在滚筒/波轮分解完成后执行。
+
+## 额外订单信息汇总
+
+`decompose-extra-summary` 会在“排单分解表明细”右侧写入额外订单信息汇总，并新增“各线体分类明细表”。当前汇总口径包括：
+
+- 锥形筒：滚筒线，钣金型号含“锥形筒”。
+- 波轮特殊内筒-10kg和9升10内筒：波轮线，钣金型号含“10kg波轮”或“9升10”。
+- 波轮特殊内筒-8升9内筒：波轮线，钣金型号含“8升9”。
+- 波轮箱体-10kg：波轮线，钣金型号含“10kg”。
+- 波轮箱体-彩板：波轮线，钣金型号含“PCM”，并剔除波轮 CKD。
+
+## 月度离线程序
+
+`自动离线程序` 用于月底按需启动，不使用 Windows 任务计划程序，也不会后台常驻运行。
+
+```powershell
+自动离线程序\启动月度处理.bat
+```
+
+启动后选择本次要处理的 Excel 文件，程序会按 `自动离线程序/monthly_flow.json` 中的 `stages` 顺序执行。当前默认流程为：
+
+```json
+{
+  "stages": [
+    "decompose-extra-summary",
+    "classify"
+  ],
+  "output_dir": "outputs"
+}
+```
+
+默认流程需要选择已经完成滚筒/波轮大类区分、并且主表中包含“类型”列的当前结果文件。每次运行会在 `自动离线程序/logs` 下写入日志，处理完成后自动打开 `outputs` 文件夹。
 
 ## 支持的 stage
 
@@ -124,6 +168,7 @@ python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs"
 - `decompose-rolling-final`：执行滚筒收尾规则，补齐普通烘干、普通内销和外销等分类，并统计剩余未分类差异。
 - `decompose-wave-basic`：执行波轮基础规则，覆盖 CKD、LG、塑料内销、P7/P9 和 SKD 等分类。
 - `decompose-wave-final`：执行波轮收尾规则，补齐内销铁皮变频、外销普通变频、内销铁皮和外销铁皮等分类，并统计剩余未分类差异。
+- `decompose-extra-summary`：生成额外订单信息汇总和各线体分类明细表，并对命中的钣金型号列上色。
 - `classify`：执行分类并生成结果表。
 
 ## 文件保留与回退
