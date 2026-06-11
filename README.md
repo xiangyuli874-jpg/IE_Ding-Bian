@@ -5,26 +5,29 @@
 ## 功能概览
 
 - 自动查找周排产明细主工作表。
-- 生成系数、钣金型号等待补充工作表，支持查询表回填和人工回填。
+- 生成系数、钣金型号、物料描述等待补充工作表，支持查询表回填和人工回填。
+- 支持单独新增/刷新“标准单位/标准台数”相关列，方便在补齐基础数据后再计算标台数。
 - 支持 SKD、滚筒备注、T7/P7/T5/P5/追觅、T9/P9、T10/P10、C6、复式、企鹅、滚筒收尾、波轮收尾和额外订单信息汇总等排单分解阶段。
 - 根据工作簿内的分类规则配置生成分类结果、未分类数据和分类汇总表。
 - 可生成“排单分解表明细”“各线体分类明细表”，并对额外订单信息命中的钣金型号列上色。
 - 在处理结果中写入处理日志，并保留有限数量的历史备份。
 - 清理旧结果时会跳过 Excel 打开的临时锁文件，避免误处理 `~$` 开头的临时文件。
-- 提供 `自动离线程序`，月底可双击启动并按配置自动执行月度处理流程。
+- 提供 `电脑自动离线程序`，月底可双击启动分步向导，按“自动查询优先、必要时手工补充”的方式跑完整月度流程。
+- 提供 `手机自动离线程序`，可部署为 Streamlit 网页，手机、iPad 或电脑浏览器上传 Excel 后下载处理结果。
 
 ## 项目结构
 
 ```text
 .
 ├── dingbian_classifier/      # 核心处理逻辑
-├── 自动离线程序/             # 月度离线启动工具
+├── 电脑自动离线程序/         # 电脑本地月度分步向导
+├── 手机自动离线程序/         # Streamlit 网页处理入口
 ├── run_classifier.py         # 命令行入口
 ├── requirements.txt          # Python 依赖
 └── README.md                 # 项目说明
 ```
 
-`outputs/`、`inputs/` 中的 Excel 文件、`自动离线程序/logs/`、`__pycache__/`、Excel 业务数据和生成结果已通过 `.gitignore` 排除，不会默认提交到仓库。
+`outputs/`、`inputs/` 中的 Excel 文件、各自动程序的 `logs/`、`__pycache__/`、Excel 业务数据、生成结果和向导续跑状态已通过 `.gitignore` 排除，不会默认提交到仓库。
 
 ## 环境准备
 
@@ -76,6 +79,30 @@ python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outpu
 python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage fill-sheet-metal --sheet-metal-lookup "<钣金型号查询表.xlsx或xls>"
 ```
 
+生成“物料描述补充”：
+
+```powershell
+python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage prepare-material-description
+```
+
+使用外部查询后的“物料描述查询表”按“物料编码”回填主表：
+
+```powershell
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage fill-material-description --material-description-lookup "<物料描述查询表.xlsx或txt/csv/tsv/xls导出>"
+```
+
+将手工维护在结果文件中的物料描述回填到主表：
+
+```powershell
+python run_classifier.py --input "<已手工补好物料描述的结果.xlsx>" --output-dir "outputs" --stage apply-manual-material-description
+```
+
+单独新增或刷新“标准单位/标准台数”相关列：
+
+```powershell
+python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage prepare-standard-units
+```
+
 只调整辅助工作表顺序：
 
 ```powershell
@@ -125,15 +152,26 @@ python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs"
 - 波轮箱体-10kg：波轮线，钣金型号含“10kg”。
 - 波轮箱体-彩板：波轮线，钣金型号含“PCM”，并剔除波轮 CKD。
 
-## 月度离线程序
+## 电脑自动离线程序
 
-`自动离线程序` 用于月底按需启动，不使用 Windows 任务计划程序，也不会后台常驻运行。
+`电脑自动离线程序` 用于电脑本地按需启动，不使用 Windows 任务计划程序，也不会后台常驻运行。
 
 ```powershell
-自动离线程序\启动月度处理.bat
+电脑自动离线程序\启动月度处理.bat
 ```
 
-启动后选择本次要处理的 Excel 文件，程序会按 `自动离线程序/monthly_flow.json` 中的 `stages` 顺序执行。当前默认流程为：
+启动后选择本次要处理的 Excel 文件，程序会按下面顺序运行分步向导：
+
+1. 生成系数待补充表，必要时选择系数查询表自动回填。
+2. 查询后仍缺失时，暂停并打开结果文件，手工填写后再次双击继续。
+3. 生成钣金型号待补充表，必要时选择钣金型号查询表自动回填。
+4. 查询后仍缺失时，暂停并等待手工补充后继续。
+5. 生成物料描述待补充表，必要时选择物料描述查询表自动回填。
+6. 查询后仍缺失时，暂停并等待手工补充后继续。
+7. 刷新“标准单位/标准台数”相关列。
+8. 按 `电脑自动离线程序/monthly_flow.json` 中的最终 `stages` 顺序继续执行。
+
+当前最终默认流程为：
 
 ```json
 {
@@ -145,7 +183,37 @@ python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs"
 }
 ```
 
-默认流程需要选择已经完成滚筒/波轮大类区分、并且主表中包含“类型”列的当前结果文件。每次运行会在 `自动离线程序/logs` 下写入日志，处理完成后自动打开 `outputs` 文件夹。
+电脑向导会在暂停时保存 `电脑自动离线程序/wizard_state.json`，再次启动时可选择继续上次流程；全部完成后会自动清除该状态文件。每次运行会在 `电脑自动离线程序/logs` 下写入日志，处理完成后自动打开 `outputs` 文件夹。
+
+## 手机网页程序
+
+`手机自动离线程序` 是 Streamlit 网页入口，适合部署到 Streamlit Community Cloud 等平台后，用手机、iPad 或电脑浏览器上传 Excel 并下载结果。
+
+本地测试：
+
+```powershell
+streamlit run 手机自动离线程序/web_app.py
+```
+
+部署到 Streamlit Community Cloud 时，Main file path 填：
+
+```text
+手机自动离线程序/web_app.py
+```
+
+当前网页默认执行 `手机自动离线程序/monthly_flow.json` 中的最终流程：
+
+```json
+{
+  "stages": [
+    "decompose-extra-summary",
+    "classify"
+  ],
+  "output_dir": "outputs"
+}
+```
+
+网页入口需要上传已经包含“类型”列的当前结果文件，适合在排单分解完成后生成额外订单信息汇总和最终分类结果。可通过 Streamlit Secrets 设置 `app_password`，或通过环境变量 `DINGBIAN_APP_PASSWORD` 设置访问密码。
 
 ## 支持的 stage
 
@@ -155,6 +223,10 @@ python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs"
 - `prepare-sheet-metal`：生成钣金型号补充表。
 - `fill-sheet-metal`：从钣金型号查询表回填。
 - `apply-manual-sheet-metal`：从人工填写列回填钣金型号。
+- `prepare-material-description`：生成物料描述补充表。
+- `fill-material-description`：从物料描述查询表按物料编码回填。
+- `apply-manual-material-description`：从人工填写列回填物料描述。
+- `prepare-standard-units`：新增或刷新标准单位/标准台数相关列。
 - `reorder-sheets`：调整辅助工作表顺序。
 - `format-main-sheet`：整理主表格式。
 - `decompose-skd`：执行 SKD 排单分解。

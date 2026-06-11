@@ -48,7 +48,6 @@ def prepare_sheet_metal(
     formula_sheet = workbook[target_sheet_name]
     values_sheet = values_workbook[target_sheet_name]
 
-    formula_count = ensure_standard_units_column(formula_sheet, logger)
     missing_count = create_sheet_metal_supplement_sheet(
         workbook,
         formula_sheet,
@@ -56,7 +55,7 @@ def prepare_sheet_metal(
         logger,
     )
     return SheetMetalPrepareResult(
-        standard_units_formulas=formula_count,
+        standard_units_formulas=0,
         sheet_metal_missing_rows=missing_count,
     )
 
@@ -87,7 +86,6 @@ def ensure_standard_units_column(sheet: Worksheet, logger: ProcessingLogger) -> 
         cell.number_format = "0.00"
     sheet.cell(1, standard_col).number_format = "General"
 
-    refresh_daily_output_formulas(sheet, logger)
     logger.info(f"已刷新“{STANDARD_UNITS_FIELD}”公式：{max(sheet.max_row - 1, 0)} 行。")
     return max(sheet.max_row - 1, 0)
 

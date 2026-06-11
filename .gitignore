@@ -14,6 +14,7 @@ env/
 outputs/
 logs/
 *.log
+wizard_state.json
 
 # Excel business data and generated workbooks
 *.xlsx

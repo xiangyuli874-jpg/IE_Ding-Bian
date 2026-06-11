@@ -25,9 +25,19 @@ from .excel_io import build_output_path, copy_workbook, load_workbook_pair, move
 from .formatting import format_main_sheet
 from .history import backup_current_result, cleanup_output_results
 from .logger import ProcessingLogger
+from .material_description import (
+    apply_manual_material_descriptions,
+    fill_material_descriptions,
+    prepare_material_descriptions,
+)
 from .reporter import write_log_sheet, write_results
 from .rule_config import ensure_config_sheet, load_rules
-from .sheet_metal import apply_manual_sheet_metal_models, fill_sheet_metal_models, prepare_sheet_metal
+from .sheet_metal import (
+    apply_manual_sheet_metal_models,
+    ensure_standard_units_column,
+    fill_sheet_metal_models,
+    prepare_sheet_metal,
+)
 from .sheet_detector import find_target_sheet
 
 
@@ -42,6 +52,7 @@ def run(
     stage: str = "classify",
     coefficient_lookup: Path | None = None,
     sheet_metal_lookup: Path | None = None,
+    material_description_lookup: Path | None = None,
 ) -> Path:
     logger = ProcessingLogger()
     input_path = input_path.resolve()
@@ -299,6 +310,62 @@ def run(
 
     if stage == "apply-manual-sheet-metal":
         apply_manual_sheet_metal_models(formula_wb, target_sheet_name, logger)
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "prepare-material-description":
+        result = prepare_material_descriptions(formula_wb, values_wb, target_sheet_name, logger)
+        if result.missing_rows:
+            logger.warning("已生成“物料描述补充”工作表，流程暂停；请查询物料描述后再运行 fill-material-description。")
+        else:
+            logger.info("未发现物料描述为空白或 #N/A 的行，可以继续后续流程。")
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "fill-material-description":
+        if material_description_lookup is None:
+            raise ValueError("fill-material-description 阶段必须提供 --material-description-lookup。")
+        fill_material_descriptions(
+            formula_wb,
+            values_wb,
+            target_sheet_name,
+            material_description_lookup.resolve(),
+            logger,
+        )
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "apply-manual-material-description":
+        apply_manual_material_descriptions(formula_wb, target_sheet_name, logger)
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "prepare-standard-units":
+        ensure_standard_units_column(formula_wb[target_sheet_name], logger)
         logger.info(f"即将保存处理结果：{output_path}")
         move_auxiliary_sheets_after(formula_wb, target_sheet_name)
         write_log_sheet(formula_wb, logger)

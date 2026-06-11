@@ -1,0 +1,7 @@
+{
+  "stages": [
+    "decompose-extra-summary",
+    "classify"
+  ],
+  "output_dir": "outputs"
+}

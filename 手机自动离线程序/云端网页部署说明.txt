@@ -1,0 +1,41 @@
+手机/iPad 云端网页处理部署说明
+
+一、用途
+本文件夹是手机、iPad、电脑浏览器使用的网页自动化入口。
+用户上传 Excel 后，网页会执行 monthly_flow.json 中配置的流程：
+decompose-extra-summary -> classify
+处理完成后可直接下载结果文件和运行日志。
+
+二、本地测试
+1. 安装依赖：
+   python -m pip install -r requirements.txt
+
+2. 从 dingbian 项目根目录启动网页：
+   streamlit run 手机自动离线程序/web_app.py
+
+3. 浏览器打开命令行中显示的网址，上传 Excel 并测试下载结果。
+
+三、免费云端部署推荐：Streamlit Community Cloud
+1. 把 dingbian 项目上传到 GitHub 仓库。
+2. 打开 Streamlit Community Cloud。
+3. 新建 App，选择该 GitHub 仓库。
+4. Main file path 填：
+   手机自动离线程序/web_app.py
+5. 部署完成后，手机、iPad、电脑都可以打开网页链接使用。
+
+四、访问密码
+第一版支持简单访问密码。
+如果不设置密码，知道网页链接的人都可以打开使用。
+
+在 Streamlit Cloud 的 App settings / Secrets 中添加：
+app_password = "你的密码"
+
+或者在服务器环境变量中设置：
+DINGBIAN_APP_PASSWORD=你的密码
+
+五、注意事项
+1. 当前云端网页需要上传已经包含“类型”列的当前结果文件，不适合直接上传完全原始表。
+2. 免费云平台可能会休眠，第一次打开网页可能需要等待几十秒。
+3. 云端通常没有 Windows Microsoft Excel，程序会自动跳过 Excel COM 重新另存步骤。
+4. 网页处理使用云平台临时目录，处理完成后只向用户提供下载，不提供长期文件存储。
+5. 如果 Excel 数据敏感，请不要把 GitHub 仓库设为公开，也不要上传业务 Excel 样例到仓库。
