@@ -14,12 +14,14 @@
 - 清理旧结果时会跳过 Excel 打开的临时锁文件，避免误处理 `~$` 开头的临时文件。
 - 提供 `电脑自动离线程序`，月底可双击启动分步向导，按“自动查询优先、必要时手工补充”的方式跑完整月度流程。
 - 提供 `手机自动离线程序`，可部署为 Streamlit 网页，手机、iPad 或电脑浏览器上传 Excel 后下载处理结果。
+- 提供 `skills/dingbian` Codex 技能，支持通过对话触发完整定编流程，并在每个补齐阶段后只读检查工作簿状态。
 
 ## 项目结构
 
 ```text
 .
 ├── dingbian_classifier/      # 核心处理逻辑
+├── skills/dingbian/          # Codex 定编自动化技能
 ├── 电脑自动离线程序/         # 电脑本地月度分步向导
 ├── 手机自动离线程序/         # Streamlit 网页处理入口
 ├── run_classifier.py         # 命令行入口
@@ -214,6 +216,25 @@ streamlit run 手机自动离线程序/web_app.py
 ```
 
 网页入口需要上传已经包含“类型”列的当前结果文件，适合在排单分解完成后生成额外订单信息汇总和最终分类结果。可通过 Streamlit Secrets 设置 `app_password`，或通过环境变量 `DINGBIAN_APP_PASSWORD` 设置访问密码。
+
+## Codex 定编技能
+
+`skills/dingbian` 将现有命令行阶段组织成可复用的 Codex 技能，不重复实现业务分类规则。用户提供月度或周排产计划 Excel 后，可通过 `$dingbian` 或“帮我处理这个月排产并定编”等自然语言触发。
+
+技能会：
+
+1. 使用只读脚本检查主工作表、待补数据和最终结果表状态。
+2. 按系数、钣金型号、物料描述、标准台数、完整排单分解和最终分类的顺序执行。
+3. 缺少查询表或仍需人工补充时暂停，并明确返回当前结果文件和下一步操作。
+4. 每次使用上一阶段的新输出继续处理，不修改原始工作簿。
+
+只读检查脚本也可以单独运行：
+
+```powershell
+python skills/dingbian/scripts/inspect_workbook.py "<工作簿.xlsx>"
+```
+
+脚本以 JSON 输出主工作表、数据行数、三类待补数量、未分类行数、最终结果表生成状态和建议的下一步操作。完整技能流程见 `skills/dingbian/references/workflow.md`。
 
 ## 支持的 stage
 
