@@ -5,7 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from .classifier import classify_rows
-from .coefficients import apply_manual_coefficients, fill_coefficients, prepare_coefficients
+from .coefficients import (
+    apply_manual_coefficients,
+    cleanup_order_rows,
+    delete_coefficient_supplement_rows,
+    fill_coefficients,
+    prepare_coefficients,
+    refresh_coefficient_lookup_formulas,
+)
 from .decomposition import (
     decompose_rolling_remark_rules,
     decompose_c6_heat_pump_dryer,
@@ -27,6 +34,7 @@ from .history import backup_current_result, cleanup_output_results
 from .logger import ProcessingLogger
 from .material_description import (
     apply_manual_material_descriptions,
+    delete_missing_material_description_rows,
     fill_material_descriptions,
     prepare_material_descriptions,
 )
@@ -35,8 +43,11 @@ from .rule_config import ensure_config_sheet, load_rules
 from .sheet_metal import (
     apply_manual_sheet_metal_models,
     ensure_standard_units_column,
+    fill_sheet_metal_models_from_bom,
     fill_sheet_metal_models,
     prepare_sheet_metal,
+    refresh_sheet_metal_lookup_formulas,
+    suggest_sheet_metal_models_from_bom,
 )
 from .sheet_detector import find_target_sheet
 
@@ -46,12 +57,25 @@ def set_active_sheet(workbook, sheet_name: str, logger: ProcessingLogger) -> Non
     logger.info(f"已设置默认打开工作表：{sheet_name}")
 
 
+def save_stage_output(workbook, output_path: Path, output_dir: Path, target_sheet_name: str, logger: ProcessingLogger) -> Path:
+    logger.info(f"即将保存处理结果：{output_path}")
+    move_auxiliary_sheets_after(workbook, target_sheet_name)
+    set_active_sheet(workbook, target_sheet_name, logger)
+    write_log_sheet(workbook, logger)
+    workbook.save(output_path)
+    resave_with_excel_if_available(output_path, logger)
+    cleanup_output_results(output_dir, output_path, logger)
+    logger.info(f"处理完成：{output_path}")
+    return output_path
+
+
 def run(
     input_path: Path,
     output_dir: Path,
     stage: str = "classify",
     coefficient_lookup: Path | None = None,
     sheet_metal_lookup: Path | None = None,
+    sheet_metal_bom_lookup: Path | None = None,
     material_description_lookup: Path | None = None,
 ) -> Path:
     logger = ProcessingLogger()
@@ -68,6 +92,68 @@ def run(
     original_sheet_names = set(formula_wb.sheetnames)
     target_sheet_name = find_target_sheet(formula_wb.sheetnames, logger)
 
+    if stage == "prepare-foundation-data":
+        coefficient_result = prepare_coefficients(formula_wb, values_wb, target_sheet_name, logger)
+        refresh_sheet_metal_lookup_formulas(formula_wb[target_sheet_name], logger)
+        sheet_metal_result = prepare_sheet_metal(formula_wb, values_wb, target_sheet_name, logger)
+        material_result = prepare_material_descriptions(formula_wb, values_wb, target_sheet_name, logger)
+        logger.info(
+            "基础数据异常并行准备完成："
+            f"订单数空白删除 {coefficient_result.deleted_blank_order_rows} 行；"
+            f"指定物料编码删除 {coefficient_result.deleted_excluded_material_rows} 行；"
+            f"系数待补 {coefficient_result.coefficient_missing_rows} 行；"
+            f"钣金型号待补 {sheet_metal_result.sheet_metal_missing_rows} 行；"
+            f"物料描述待补 {material_result.missing_rows} 行。"
+        )
+        if (
+            coefficient_result.coefficient_missing_rows
+            or sheet_metal_result.sheet_metal_missing_rows
+            or material_result.missing_rows
+        ):
+            logger.warning("已生成基础数据补充工作表；可继续提供对应查询表或手工补充，全部补齐后再进入主表格式、标台数和排单分解。")
+        else:
+            logger.info("基础数据未发现待补项，可以继续 format-main-sheet。")
+        return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
+
+    if stage == "cleanup-order-rows":
+        cleanup_result = cleanup_order_rows(formula_wb[target_sheet_name], logger)
+        refreshed = refresh_coefficient_lookup_formulas(formula_wb[target_sheet_name], logger)
+        sheet_metal_refreshed = refresh_sheet_metal_lookup_formulas(formula_wb[target_sheet_name], logger)
+        logger.info(
+            "订单行清理完成："
+            f"订单数空白删除 {cleanup_result.deleted_blank_order_rows} 行；"
+            f"指定物料编码删除 {cleanup_result.deleted_excluded_material_rows} 行；"
+            f"系数公式刷新 {refreshed} 行；"
+            f"钣金型号公式刷新 {sheet_metal_refreshed} 行。"
+        )
+        return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
+
+    if stage == "refresh-coefficient-formulas":
+        refresh_coefficient_lookup_formulas(formula_wb[target_sheet_name], logger)
+        return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
+
+    if stage == "cleanup-missing-material-description-rows":
+        result = delete_missing_material_description_rows(formula_wb, target_sheet_name, logger)
+        refreshed = refresh_coefficient_lookup_formulas(formula_wb[target_sheet_name], logger)
+        sheet_metal_refreshed = refresh_sheet_metal_lookup_formulas(formula_wb[target_sheet_name], logger)
+        logger.info(
+            f"物料描述缺失订单行清理完成：删除 {result.deleted_rows} 行；"
+            f"系数公式刷新 {refreshed} 行；"
+            f"钣金型号公式刷新 {sheet_metal_refreshed} 行。"
+        )
+        return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
+
+    if stage == "cleanup-coefficient-supplement-rows":
+        result = delete_coefficient_supplement_rows(formula_wb, target_sheet_name, logger)
+        refreshed = refresh_coefficient_lookup_formulas(formula_wb[target_sheet_name], logger)
+        sheet_metal_refreshed = refresh_sheet_metal_lookup_formulas(formula_wb[target_sheet_name], logger)
+        logger.info(
+            f"系数补充对应订单行清理完成：删除 {result.deleted_rows} 行；"
+            f"涉及物料编码 {result.deleted_codes} 个；系数公式刷新 {refreshed} 行；"
+            f"钣金型号公式刷新 {sheet_metal_refreshed} 行。"
+        )
+        return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
+
     if stage == "reorder-sheets":
         move_auxiliary_sheets_after(formula_wb, target_sheet_name)
         logger.info("已将系数/钣金型号相关辅助工作表移动到周排产明细表后面。")
@@ -80,6 +166,7 @@ def run(
         return output_path
 
     if stage == "format-main-sheet":
+        ensure_standard_units_column(formula_wb[target_sheet_name], logger)
         format_main_sheet(formula_wb[target_sheet_name], logger)
         logger.info(f"即将保存处理结果：{output_path}")
         move_auxiliary_sheets_after(formula_wb, target_sheet_name)
@@ -299,6 +386,45 @@ def run(
             sheet_metal_lookup.resolve(),
             logger,
         )
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "fill-sheet-metal-bom":
+        if sheet_metal_bom_lookup is None:
+            raise ValueError("fill-sheet-metal-bom 阶段必须提供 --sheet-metal-bom-lookup。")
+        fill_sheet_metal_models_from_bom(
+            formula_wb,
+            values_wb,
+            target_sheet_name,
+            sheet_metal_bom_lookup.resolve(),
+            logger,
+        )
+        logger.info(f"即将保存处理结果：{output_path}")
+        move_auxiliary_sheets_after(formula_wb, target_sheet_name)
+        write_log_sheet(formula_wb, logger)
+        formula_wb.save(output_path)
+        resave_with_excel_if_available(output_path, logger)
+        cleanup_output_results(output_dir, output_path, logger)
+        logger.info(f"处理完成：{output_path}")
+        return output_path
+
+    if stage == "suggest-sheet-metal-bom":
+        if sheet_metal_bom_lookup is None:
+            raise ValueError("suggest-sheet-metal-bom 阶段必须提供 --sheet-metal-bom-lookup。")
+        suggest_sheet_metal_models_from_bom(
+            formula_wb,
+            values_wb,
+            target_sheet_name,
+            sheet_metal_bom_lookup.resolve(),
+            logger,
+        )
+        logger.warning("BOM候选已写入“钣金型号补充”，主表尚未回填；请人工确认后再运行 apply-manual-sheet-metal。")
         logger.info(f"即将保存处理结果：{output_path}")
         move_auxiliary_sheets_after(formula_wb, target_sheet_name)
         write_log_sheet(formula_wb, logger)

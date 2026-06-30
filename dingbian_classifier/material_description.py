@@ -40,6 +40,11 @@ class ManualMaterialDescriptionApplyResult:
     remaining_rows: int
 
 
+@dataclass
+class MissingMaterialDescriptionCleanupResult:
+    deleted_rows: int
+
+
 def prepare_material_descriptions(
     workbook: Workbook,
     values_workbook: Workbook,
@@ -56,6 +61,29 @@ def prepare_material_descriptions(
     return MaterialDescriptionPrepareResult(missing_rows=len(row_numbers))
 
 
+def delete_missing_material_description_rows(
+    workbook: Workbook,
+    target_sheet_name: str,
+    logger: ProcessingLogger,
+) -> MissingMaterialDescriptionCleanupResult:
+    formula_sheet = workbook[target_sheet_name]
+    headers = _header_map(formula_sheet)
+    _require_columns(headers, ["物料描述"], "主数据表")
+    description_col = headers["物料描述"]
+    rows_to_delete = [
+        row_index
+        for row_index in range(2, formula_sheet.max_row + 1)
+        if _is_missing_description(formula_sheet.cell(row_index, description_col).value)
+    ]
+    for row_index in reversed(rows_to_delete):
+        formula_sheet.delete_rows(row_index, 1)
+
+    refresh_material_description_supplement_sheet(workbook, formula_sheet, [], logger)
+    create_still_missing_sheet(workbook, formula_sheet, [], logger)
+    logger.info(f"已删除物料描述缺失的未上单订单行：{len(rows_to_delete)} 行。")
+    return MissingMaterialDescriptionCleanupResult(deleted_rows=len(rows_to_delete))
+
+
 def fill_material_descriptions(
     workbook: Workbook,
     values_workbook: Workbook,
@@ -69,10 +97,11 @@ def fill_material_descriptions(
     for code, description in lookup_pairs:
         if _is_blank(code) or _is_missing_description(description):
             continue
-        if code in lookup_map and lookup_map[code] != description:
+        code_key = _code_key(code)
+        if code_key in lookup_map and lookup_map[code_key] != description:
             conflicts += 1
             continue
-        lookup_map[code] = description
+        lookup_map[code_key] = description
 
     if not lookup_map:
         raise ClassifierError("物料描述查询表没有可用的物料编码和物料描述。")
@@ -93,7 +122,7 @@ def fill_material_descriptions(
         if not _is_missing_description(current_description):
             continue
         code = values_sheet.cell(row_index, code_col).value
-        matched_description = lookup_map.get(code)
+        matched_description = lookup_map.get(_code_key(code))
         if matched_description is None:
             remaining_rows.append(row_index)
             continue
@@ -122,14 +151,70 @@ def apply_manual_material_descriptions(
     source_headers = _header_map(source_sheet)
     main_headers = _header_map(formula_sheet)
     _require_columns(source_headers, ["原始行号", "物料描述"], source_sheet.title)
-    _require_columns(main_headers, ["物料描述"], "主数据表")
+    _require_columns(main_headers, ["物料编码", "物料描述"], "主数据表")
 
     row_no_col = source_headers["原始行号"]
     source_description_col = source_headers["物料描述"]
+    source_code_col = source_headers.get("物料编码")
+    main_code_col = main_headers["物料编码"]
     main_description_col = main_headers["物料描述"]
 
     remaining_rows: list[int] = []
     applied_rows = 0
+    if source_code_col:
+        description_by_code: dict[str, Any] = {}
+        remaining_codes: set[str] = set()
+        invalid_original_rows: list[int] = []
+
+        for row_index in range(2, source_sheet.max_row + 1):
+            code = _code_key(source_sheet.cell(row_index, source_code_col).value)
+            description = source_sheet.cell(row_index, source_description_col).value
+            if _is_valid_manual_description(description):
+                if code:
+                    description_by_code[code] = description
+            elif code:
+                remaining_codes.add(code)
+            else:
+                original_row = source_sheet.cell(row_index, row_no_col).value
+                if _is_blank(original_row):
+                    continue
+                try:
+                    invalid_original_rows.append(int(original_row))
+                except (TypeError, ValueError):
+                    logger.warning(f"{source_sheet.title} 第 {row_index} 行原始行号无效，已跳过：{original_row}")
+
+        if description_by_code:
+            for row_index in range(2, formula_sheet.max_row + 1):
+                code = _code_key(formula_sheet.cell(row_index, main_code_col).value)
+                if code not in description_by_code:
+                    continue
+                if not _is_missing_description(formula_sheet.cell(row_index, main_description_col).value):
+                    continue
+                formula_sheet.cell(row_index, main_description_col).value = description_by_code[code]
+                applied_rows += 1
+
+        if remaining_codes:
+            for row_index in range(2, formula_sheet.max_row + 1):
+                code = _code_key(formula_sheet.cell(row_index, main_code_col).value)
+                if code in remaining_codes and _is_missing_description(
+                    formula_sheet.cell(row_index, main_description_col).value
+                ):
+                    remaining_rows.append(row_index)
+
+        remaining_rows.extend(
+            row_index
+            for row_index in invalid_original_rows
+            if 2 <= row_index <= formula_sheet.max_row
+            and _is_missing_description(formula_sheet.cell(row_index, main_description_col).value)
+        )
+        remaining_rows = sorted(set(remaining_rows))
+        create_still_missing_sheet(workbook, formula_sheet, remaining_rows, logger)
+        refresh_material_description_supplement_sheet(workbook, formula_sheet, remaining_rows, logger)
+        logger.info(
+            f"已从“{source_sheet.title}”按物料编码回填手工物料描述：{applied_rows} 行；仍待补充 {len(remaining_rows)} 行。"
+        )
+        return ManualMaterialDescriptionApplyResult(applied_rows=applied_rows, remaining_rows=len(remaining_rows))
+
     for row_index in range(2, source_sheet.max_row + 1):
         original_row = source_sheet.cell(row_index, row_no_col).value
         description = source_sheet.cell(row_index, source_description_col).value
@@ -331,6 +416,12 @@ def _require_text_columns(header_map: dict[str, int], columns: list[str], contex
 
 def _is_blank(value: Any) -> bool:
     return value is None or str(value).strip() == ""
+
+
+def _code_key(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
 
 
 def _is_na(value: Any) -> bool:

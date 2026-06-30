@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from copy import copy
 from dataclasses import dataclass, field
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 
 from openpyxl import Workbook
@@ -272,6 +272,13 @@ class ExtraOrderSummaryRule:
 class ExtraOrderSummaryResult:
     category_totals: dict[str, Decimal] = field(default_factory=dict)
     category_rows: dict[str, int] = field(default_factory=dict)
+    capacity_totals: dict[str, Decimal] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class CapacityPlanningSummaryItem:
+    name: str
+    criteria: str
 
 
 EXTRA_ORDER_SUMMARY_RULES = [
@@ -304,6 +311,26 @@ EXTRA_ORDER_SUMMARY_RULES = [
         "wave",
         "FCE4D6",
         "波轮线；钣金型号含“PCM”；剔除波轮CKD",
+    ),
+]
+
+CAPACITY_PLANNING_SHEET_NAME = "产能规划"
+CAPACITY_PLANNING_SUMMARY_ITEMS = [
+    CapacityPlanningSummaryItem(
+        "外协烘道数量",
+        "产能规划；查找“外协烘道”右侧数量",
+    ),
+    CapacityPlanningSummaryItem(
+        "滚筒喷粉数量",
+        "产能规划；产能预算-喷涂表；项目=滚筒，类别=喷涂",
+    ),
+    CapacityPlanningSummaryItem(
+        "波轮喷粉数量",
+        "产能规划；产能预算-喷涂表；项目=波轮，类别=喷涂",
+    ),
+    CapacityPlanningSummaryItem(
+        "PCM板中需喷涂前门板的箱体数量",
+        "产能规划；外发/改PCM；改PCM箱体(未改门板)+改PCM箱体(未改门板)-金属粉",
     ),
 ]
 
@@ -1174,16 +1201,26 @@ def write_extra_order_summary(
         metal_cell.fill = PatternFill(fill_type="solid", fgColor=first_rule.fill_rgb)
         _set_font_for_fill(metal_cell, first_rule.fill_rgb)
 
-    _write_extra_order_summary_table(detail_sheet, category_rows, category_totals)
-    write_line_classification_detail_sheet(workbook, main_sheet_name, headers, logger)
+    capacity_totals = _collect_capacity_planning_summary(workbook, values_workbook, logger)
+    _write_extra_order_summary_table(detail_sheet, category_rows, category_totals, capacity_totals)
+    write_line_classification_detail_sheet(workbook, values_workbook, main_sheet_name, headers, logger)
     logger.info(
         "额外订单信息汇总完成："
         + "；".join(
             f"{rule.name} {category_rows[rule.name]} 行/{category_totals[rule.name]}"
             for rule in EXTRA_ORDER_SUMMARY_RULES
         )
+        + "；"
+        + "；".join(
+            f"{item.name} {capacity_totals[item.name]}"
+            for item in CAPACITY_PLANNING_SUMMARY_ITEMS
+        )
     )
-    return ExtraOrderSummaryResult(category_totals=category_totals, category_rows=category_rows)
+    return ExtraOrderSummaryResult(
+        category_totals=category_totals,
+        category_rows=category_rows,
+        capacity_totals=capacity_totals,
+    )
 
 
 def write_decomposition_detail_sheet(
@@ -1234,42 +1271,65 @@ def write_decomposition_detail_sheet(
 
 def write_line_classification_detail_sheet(
     workbook: Workbook,
+    values_workbook: Workbook,
     main_sheet_name: str,
     headers: dict[str, int],
     logger: ProcessingLogger,
 ) -> None:
     sheet = workbook[main_sheet_name]
+    values_sheet = values_workbook[main_sheet_name]
     remove_sheet_if_exists(workbook, LINE_CLASSIFICATION_SHEET_NAME)
     detail_sheet = workbook.create_sheet(LINE_CLASSIFICATION_SHEET_NAME)
 
-    rolling_line_types = _collect_line_type_totals(sheet, headers, ROLLING_LINE_ORDER)
-    wave_line_types = _collect_line_type_totals(sheet, headers, WAVE_LINE_ORDER)
-    rolling_line_totals = _collect_line_totals(sheet, headers, ROLLING_LINE_ORDER)
-    wave_line_totals = _collect_line_totals(sheet, headers, WAVE_LINE_ORDER)
+    rolling_line_order = _actual_line_order(sheet, headers, ROLLING_LINE_ORDER, rolling=True)
+    wave_line_order = _actual_line_order(sheet, headers, WAVE_LINE_ORDER, rolling=False)
 
-    rolling_rows = _build_line_detail_rows(ROLLING_LABELS, ROLLING_LINE_ORDER, rolling_line_types, "rolling")
-    wave_rows = _build_line_detail_rows(WAVE_LABELS, WAVE_LINE_ORDER, wave_line_types, "wave")
+    rolling_line_types = _collect_line_type_totals(sheet, values_sheet, headers, rolling_line_order)
+    wave_line_types = _collect_line_type_totals(sheet, values_sheet, headers, wave_line_order)
+    rolling_line_totals = _collect_line_totals(sheet, values_sheet, headers, rolling_line_order)
+    wave_line_totals = _collect_line_totals(sheet, values_sheet, headers, wave_line_order)
 
     row_index = 1
     row_index = _write_line_detail_section(
         detail_sheet,
         row_index,
-        "滚筒各线体分类明细",
-        ROLLING_LINE_ORDER,
-        rolling_rows,
+        "滚筒各线体分类明细-订单数",
+        rolling_line_order,
+        _build_line_detail_rows(ROLLING_LABELS, rolling_line_order, rolling_line_types, "rolling", "order"),
         rolling_line_totals,
+        "order",
     )
     _write_line_detail_section(
         detail_sheet,
         row_index + 2,
-        "波轮各线体分类明细",
-        WAVE_LINE_ORDER,
-        wave_rows,
+        "滚筒各线体分类明细-标台数",
+        rolling_line_order,
+        _build_line_detail_rows(ROLLING_LABELS, rolling_line_order, rolling_line_types, "rolling", "standard"),
+        rolling_line_totals,
+        "standard",
+    )
+    row_index = detail_sheet.max_row + 3
+    row_index = _write_line_detail_section(
+        detail_sheet,
+        row_index,
+        "波轮各线体分类明细-订单数",
+        wave_line_order,
+        _build_line_detail_rows(WAVE_LABELS, wave_line_order, wave_line_types, "wave", "order"),
         wave_line_totals,
+        "order",
+    )
+    _write_line_detail_section(
+        detail_sheet,
+        row_index + 2,
+        "波轮各线体分类明细-标台数",
+        wave_line_order,
+        _build_line_detail_rows(WAVE_LABELS, wave_line_order, wave_line_types, "wave", "standard"),
+        wave_line_totals,
+        "standard",
     )
     _style_line_classification_detail_sheet(detail_sheet)
     _move_sheet_after(workbook, LINE_CLASSIFICATION_SHEET_NAME, DETAIL_SHEET_NAME)
-    logger.info(f"已创建“{LINE_CLASSIFICATION_SHEET_NAME}”，并按线体汇总各分类订单数。")
+    logger.info(f"已创建“{LINE_CLASSIFICATION_SHEET_NAME}”，并分表汇总各分类订单数和标台数。")
 
 
 def _capture_detail_sheet_styles(workbook: Workbook) -> dict[tuple[str, str], list[dict[str, Any]]]:
@@ -1426,14 +1486,139 @@ def _style_decomposition_sheet(sheet: Worksheet) -> None:
     sheet.column_dimensions["D"].width = 14
 
 
+def _collect_capacity_planning_summary(
+    workbook: Workbook,
+    values_workbook: Workbook,
+    logger: ProcessingLogger,
+) -> dict[str, Decimal]:
+    totals = {item.name: Decimal("0") for item in CAPACITY_PLANNING_SUMMARY_ITEMS}
+    if CAPACITY_PLANNING_SHEET_NAME not in workbook.sheetnames:
+        logger.warning(f"未找到“{CAPACITY_PLANNING_SHEET_NAME}”工作表，产能规划来源的额外汇总项已按 0 写入。")
+        return totals
+
+    sheet = workbook[CAPACITY_PLANNING_SHEET_NAME]
+    values_sheet = (
+        values_workbook[CAPACITY_PLANNING_SHEET_NAME]
+        if CAPACITY_PLANNING_SHEET_NAME in values_workbook.sheetnames
+        else sheet
+    )
+
+    totals["外协烘道数量"] = _find_value_right_of_label(sheet, values_sheet, "外协烘道")
+    spray_values = _collect_spray_budget_values(sheet, values_sheet, logger)
+    totals["滚筒喷粉数量"] = spray_values["rolling_spray"]
+    totals["波轮喷粉数量"] = spray_values["wave_spray"]
+    totals["PCM板中需喷涂前门板的箱体数量"] = (
+        spray_values["pcm_box"] + spray_values["pcm_box_metal_powder"]
+    )
+    return totals
+
+
+def _find_value_right_of_label(sheet: Worksheet, values_sheet: Worksheet, label: str) -> Decimal:
+    for row_index in range(1, sheet.max_row + 1):
+        for col_index in range(1, sheet.max_column + 1):
+            if _cell_text(sheet.cell(row_index, col_index).value) != label:
+                continue
+            for value_col in range(col_index + 1, min(sheet.max_column, col_index + 6) + 1):
+                value = _decimal_from_cell_pair(sheet, values_sheet, row_index, value_col)
+                if value is not None:
+                    return value
+    return Decimal("0")
+
+
+def _collect_spray_budget_values(
+    sheet: Worksheet,
+    values_sheet: Worksheet,
+    logger: ProcessingLogger,
+) -> dict[str, Decimal]:
+    result = {
+        "rolling_spray": Decimal("0"),
+        "wave_spray": Decimal("0"),
+        "pcm_box": Decimal("0"),
+        "pcm_box_metal_powder": Decimal("0"),
+    }
+    header = _find_spray_budget_header(sheet)
+    if header is None:
+        logger.warning("未在“产能规划”中找到“产能预算-喷涂”表头，相关额外汇总项已按 0 写入。")
+        return result
+
+    header_row, project_col = header
+    category_col = project_col + 1
+    amount_col = project_col + 2
+    current_project = ""
+    blank_streak = 0
+    for row_index in range(header_row + 1, sheet.max_row + 1):
+        project = _cell_text(sheet.cell(row_index, project_col).value)
+        category = _cell_text(sheet.cell(row_index, category_col).value)
+        if project:
+            current_project = project
+
+        if not project and not category:
+            blank_streak += 1
+            if blank_streak >= 5:
+                break
+            continue
+        blank_streak = 0
+
+        value = _decimal_from_cell_pair(sheet, values_sheet, row_index, amount_col) or Decimal("0")
+        if current_project == "波轮" and category == "喷涂":
+            result["wave_spray"] += value
+        elif current_project == "滚筒" and category == "喷涂":
+            result["rolling_spray"] += value
+        elif current_project == "外发/改PCM" and category == "改PCM箱体(未改门板)":
+            result["pcm_box"] += value
+        elif current_project == "外发/改PCM" and category == "改PCM箱体(未改门板)-金属粉":
+            result["pcm_box_metal_powder"] += value
+
+    return result
+
+
+def _find_spray_budget_header(sheet: Worksheet) -> tuple[int, int] | None:
+    for row_index in range(1, sheet.max_row + 1):
+        for col_index in range(1, max(sheet.max_column - 1, 1)):
+            if (
+                _cell_text(sheet.cell(row_index, col_index).value) == "项目"
+                and _cell_text(sheet.cell(row_index, col_index + 1).value) == "类别"
+                and _cell_text(sheet.cell(row_index, col_index + 2).value) == "数量"
+            ):
+                title_text = " ".join(
+                    _cell_text(sheet.cell(title_row, title_col).value)
+                    for title_row in range(max(1, row_index - 3), row_index)
+                    for title_col in range(col_index, min(sheet.max_column, col_index + 4) + 1)
+                )
+                if "产能预算" in title_text and "喷涂" in title_text:
+                    return row_index, col_index
+    return None
+
+
+def _cell_text(value: Any) -> str:
+    return str(value or "").replace("\n", "").replace(" ", "").strip()
+
+
+def _decimal_from_cell_pair(
+    formula_sheet: Worksheet,
+    values_sheet: Worksheet,
+    row_index: int,
+    col_index: int,
+) -> Decimal | None:
+    value = _to_decimal_or_none(values_sheet.cell(row_index, col_index).value)
+    if value is not None:
+        return value
+
+    formula_value = formula_sheet.cell(row_index, col_index).value
+    if isinstance(formula_value, str) and formula_value.startswith("="):
+        return None
+    return _to_decimal_or_none(formula_value)
+
+
 def _write_extra_order_summary_table(
     sheet: Worksheet,
     category_rows: dict[str, int],
     category_totals: dict[str, Decimal],
+    capacity_totals: dict[str, Decimal],
 ) -> None:
     start_col = 6
     end_col = 9
-    max_row = max(sheet.max_row, len(EXTRA_ORDER_SUMMARY_RULES) + 2)
+    max_row = max(sheet.max_row, len(EXTRA_ORDER_SUMMARY_RULES) + len(CAPACITY_PLANNING_SUMMARY_ITEMS) + 2)
     for merged_range in list(sheet.merged_cells.ranges):
         if merged_range.min_col >= start_col and merged_range.max_col <= end_col:
             sheet.unmerge_cells(str(merged_range))
@@ -1448,7 +1633,7 @@ def _write_extra_order_summary_table(
 
     rows = [
         ["额外订单信息汇总", None, None, None],
-        ["补充项目", "数据行数", "订单数合计", "筛选口径"],
+        ["补充项目", "数据行数", "数量/订单数合计", "筛选口径"],
     ]
     for rule in EXTRA_ORDER_SUMMARY_RULES:
         rows.append(
@@ -1457,6 +1642,15 @@ def _write_extra_order_summary_table(
                 category_rows[rule.name],
                 _number_or_int(category_totals[rule.name]),
                 rule.criteria,
+            ]
+        )
+    for item in CAPACITY_PLANNING_SUMMARY_ITEMS:
+        rows.append(
+            [
+                item.name,
+                "",
+                _number_or_int(capacity_totals.get(item.name, Decimal("0"))),
+                item.criteria,
             ]
         )
 
@@ -1493,9 +1687,10 @@ def _write_extra_order_summary_table(
 
 def _collect_line_type_totals(
     sheet: Worksheet,
+    values_sheet: Worksheet,
     headers: dict[str, int],
     line_order: list[str],
-) -> dict[str, dict[str, Decimal]]:
+) -> dict[str, dict[str, dict[str, Decimal]]]:
     totals = {line: {} for line in line_order}
     for row_index in range(2, sheet.max_row + 1):
         line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
@@ -1505,52 +1700,92 @@ def _collect_line_type_totals(
         if not type_name:
             continue
         order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
-        totals[line][type_name] = totals[line].get(type_name, Decimal("0")) + order_qty
+        standard_units = _standard_units_value(sheet, values_sheet, headers, row_index, order_qty)
+        if type_name not in totals[line]:
+            totals[line][type_name] = {"order": Decimal("0"), "standard": Decimal("0")}
+        totals[line][type_name]["order"] += order_qty
+        totals[line][type_name]["standard"] += standard_units
     return totals
+
+
+def _actual_line_order(sheet: Worksheet, headers: dict[str, int], base_order: list[str], *, rolling: bool) -> list[str]:
+    line_order = list(base_order)
+    seen = set(line_order)
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if not line or line in seen:
+            continue
+        is_wave = _is_wave_line(line)
+        if rolling and is_wave:
+            continue
+        if not rolling and not is_wave:
+            continue
+        line_order.append(line)
+        seen.add(line)
+    return line_order
 
 
 def _collect_line_totals(
     sheet: Worksheet,
+    values_sheet: Worksheet,
     headers: dict[str, int],
     line_order: list[str],
-) -> dict[str, Decimal]:
-    totals = {line: Decimal("0") for line in line_order}
+) -> dict[str, dict[str, Decimal]]:
+    totals = {line: {"order": Decimal("0"), "standard": Decimal("0")} for line in line_order}
     for row_index in range(2, sheet.max_row + 1):
         line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
         if line not in totals:
             continue
-        totals[line] += _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+        order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
+        totals[line]["order"] += order_qty
+        totals[line]["standard"] += _standard_units_value(sheet, values_sheet, headers, row_index, order_qty)
     return totals
 
 
 def _build_line_detail_rows(
     labels: list[str],
     line_order: list[str],
-    line_type_totals: dict[str, dict[str, Decimal]],
+    line_type_totals: dict[str, dict[str, dict[str, Decimal]]],
     section: str,
+    metric: str,
 ) -> list[list[Any]]:
     rows: list[list[Any]] = []
     for label in labels:
-        values = [
-            _line_category_value(label, line_type_totals[line], section)
-            for line in line_order
-        ]
-        rows.append([label, *values, sum(values, Decimal("0"))])
+        metric_values = []
+        for line in line_order:
+            value = _line_category_value(label, line_type_totals[line], section)
+            metric_values.append(value[metric])
+        rows.append([label, *metric_values, sum(metric_values, Decimal("0"))])
     return rows
 
 
-def _line_category_value(label: str | None, type_totals: dict[str, Decimal], section: str) -> Decimal:
+def _line_category_value(
+    label: str | None,
+    type_totals: dict[str, dict[str, Decimal]],
+    section: str,
+) -> dict[str, Decimal]:
+    zero = {"order": Decimal("0"), "standard": Decimal("0")}
     if not label:
-        return Decimal("0")
+        return zero
     if section == "rolling":
         if label == "SKD总数(包含烘干)":
-            return type_totals.get("SKD", Decimal("0")) + type_totals.get("SKD烘干", Decimal("0"))
+            return _add_metric_totals(type_totals.get("SKD"), type_totals.get("SKD烘干"))
         if label == "内销":
-            return type_totals.get("内销", Decimal("0")) + type_totals.get(DOMESTIC_TYPE, Decimal("0"))
-        return type_totals.get(label, Decimal("0"))
+            return _add_metric_totals(type_totals.get("内销"), type_totals.get(DOMESTIC_TYPE))
+        return type_totals.get(label, zero)
     if label == WAVE_P7P9_LABEL:
-        return type_totals.get(WAVE_P7P9_LABEL, Decimal("0")) + type_totals.get(WAVE_P7P9_TYPE, Decimal("0"))
-    return type_totals.get(label, Decimal("0"))
+        return _add_metric_totals(type_totals.get(WAVE_P7P9_LABEL), type_totals.get(WAVE_P7P9_TYPE))
+    return type_totals.get(label, zero)
+
+
+def _add_metric_totals(*items: dict[str, Decimal] | None) -> dict[str, Decimal]:
+    total = {"order": Decimal("0"), "standard": Decimal("0")}
+    for item in items:
+        if not item:
+            continue
+        total["order"] += item.get("order", Decimal("0"))
+        total["standard"] += item.get("standard", Decimal("0"))
+    return total
 
 
 def _write_line_detail_section(
@@ -1559,7 +1794,8 @@ def _write_line_detail_section(
     title: str,
     line_order: list[str],
     rows: list[list[Any]],
-    line_totals: dict[str, Decimal],
+    line_totals: dict[str, dict[str, Decimal]],
+    metric: str,
 ) -> int:
     end_col = len(line_order) + 2
     sheet.merge_cells(start_row=start_row, start_column=1, end_row=start_row, end_column=end_col)
@@ -1570,17 +1806,26 @@ def _write_line_detail_section(
 
     for row_offset, row_values in enumerate(rows, start=start_row + 2):
         sheet.cell(row_offset, 1).value = row_values[0]
+        is_standard_units = metric == "standard"
         for col_index, value in enumerate(row_values[1:], start=2):
-            sheet.cell(row_offset, col_index).value = _number_or_int(value)
+            sheet.cell(row_offset, col_index).value = (
+                _number_one_decimal(value) if is_standard_units else _number_or_int(value)
+            )
+            if is_standard_units:
+                sheet.cell(row_offset, col_index).number_format = "0.0"
 
     total_row = start_row + len(rows) + 2
-    sheet.cell(total_row, 1).value = "合计"
-    total = Decimal("0")
+    sheet.cell(total_row, 1).value = "标台数合计" if metric == "standard" else "订单数合计"
+    grand_total = Decimal("0")
     for col_index, line in enumerate(line_order, start=2):
-        value = line_totals[line]
-        sheet.cell(total_row, col_index).value = _number_or_int(value)
-        total += value
-    sheet.cell(total_row, end_col).value = _number_or_int(total)
+        value = line_totals[line][metric]
+        sheet.cell(total_row, col_index).value = _number_one_decimal(value) if metric == "standard" else _number_or_int(value)
+        if metric == "standard":
+            sheet.cell(total_row, col_index).number_format = "0.0"
+        grand_total += value
+    sheet.cell(total_row, end_col).value = _number_one_decimal(grand_total) if metric == "standard" else _number_or_int(grand_total)
+    if metric == "standard":
+        sheet.cell(total_row, end_col).number_format = "0.0"
     return total_row
 
 
@@ -1591,7 +1836,8 @@ def _style_line_classification_detail_sheet(sheet: Worksheet) -> None:
     thin = Side(style="thin", color="000000")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-    for row in sheet.iter_rows(min_row=1, max_row=sheet.max_row, min_col=1, max_col=8):
+    max_col = sheet.max_column
+    for row in sheet.iter_rows(min_row=1, max_row=sheet.max_row, min_col=1, max_col=max_col):
         for cell in row:
             cell.border = border
             cell.alignment = Alignment(horizontal="center", vertical="center")
@@ -1599,7 +1845,7 @@ def _style_line_classification_detail_sheet(sheet: Worksheet) -> None:
 
     for row_index in range(1, sheet.max_row + 1):
         first_value = sheet.cell(row_index, 1).value
-        if first_value in {"滚筒各线体分类明细", "波轮各线体分类明细"}:
+        if str(first_value or "").startswith(("滚筒各线体分类明细", "波轮各线体分类明细")):
             for cell in sheet[row_index]:
                 cell.fill = blue_fill
                 cell.font = Font(color="FFFFFF", bold=True)
@@ -1608,14 +1854,14 @@ def _style_line_classification_detail_sheet(sheet: Worksheet) -> None:
             for cell in sheet[row_index]:
                 cell.fill = header_fill
                 cell.font = Font(color="000000", bold=True)
-        elif first_value == "合计":
+        elif first_value in {"订单数合计", "标台数合计"}:
             for cell in sheet[row_index]:
                 cell.fill = total_fill
                 cell.font = Font(color="000000", bold=True)
 
     sheet.freeze_panes = "B3"
     sheet.column_dimensions["A"].width = 34
-    for col_index in range(2, 9):
+    for col_index in range(2, max_col + 1):
         sheet.column_dimensions[get_column_letter(col_index)].width = 12
 
 
@@ -1896,8 +2142,42 @@ def _to_decimal_or_none(value: Any) -> Decimal | None:
         return None
 
 
+def _standard_units_value(
+    sheet: Worksheet,
+    values_sheet: Worksheet,
+    headers: dict[str, int],
+    row_index: int,
+    order_qty: Decimal,
+) -> Decimal:
+    standard_col = headers.get("标台数")
+    if standard_col:
+        cached_value = values_sheet.cell(row_index, standard_col).value
+        value = _to_decimal_or_none(cached_value)
+        if value is not None:
+            return value
+
+        formula_value = sheet.cell(row_index, standard_col).value
+        value = _to_decimal_or_none(formula_value)
+        if value is not None:
+            return value
+
+    coefficient_col = headers.get("系数")
+    if not coefficient_col:
+        return Decimal("0")
+    coefficient = _to_decimal_or_none(values_sheet.cell(row_index, coefficient_col).value)
+    if coefficient is None:
+        coefficient = _to_decimal_or_none(sheet.cell(row_index, coefficient_col).value)
+    if coefficient is None:
+        return Decimal("0")
+    return coefficient * order_qty
+
+
 def _number_or_int(value: Decimal):
     return int(value) if value == value.to_integral_value() else float(value)
+
+
+def _number_one_decimal(value: Decimal) -> float:
+    return float(value.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
 
 
 def _move_sheet_after(workbook: Workbook, sheet_name: str, anchor_sheet_name: str) -> None:

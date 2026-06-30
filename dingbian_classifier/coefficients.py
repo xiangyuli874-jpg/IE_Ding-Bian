@@ -21,11 +21,13 @@ from .reporter import style_header
 COEFFICIENT_SUPPLEMENT_SHEET = "系数补充"
 COEFFICIENT_LOOKUP_SHEET = "系数查询表"
 COEFFICIENT_STILL_MISSING_SHEET = "系数仍缺失"
+EXCLUDED_MATERIAL_CODES = {"Z4U6010100"}
 
 
 @dataclass
 class CoefficientPrepareResult:
     deleted_blank_order_rows: int
+    deleted_excluded_material_rows: int
     coefficient_missing_rows: int
 
 
@@ -39,6 +41,18 @@ class CoefficientFillResult:
 class ManualCoefficientApplyResult:
     applied_rows: int
     remaining_rows: int
+
+
+@dataclass
+class OrderCleanupResult:
+    deleted_blank_order_rows: int
+    deleted_excluded_material_rows: int
+
+
+@dataclass
+class CoefficientSupplementRowsCleanupResult:
+    deleted_rows: int
+    deleted_codes: int
 
 
 def _header_map(sheet: Worksheet) -> dict[str, int]:
@@ -65,6 +79,12 @@ def _is_na(value: Any) -> bool:
     return value is not None and str(value).strip().upper() in {"#N/A", "#NA", "N/A"}
 
 
+def _code_key(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
 def delete_blank_order_rows(sheet: Worksheet, logger: ProcessingLogger) -> int:
     headers = _header_map(sheet)
     _require_columns(headers, ["订单数"], "主数据表")
@@ -80,6 +100,108 @@ def delete_blank_order_rows(sheet: Worksheet, logger: ProcessingLogger) -> int:
 
     logger.info(f"订单数为空白的行已删除：{len(rows_to_delete)} 行。")
     return len(rows_to_delete)
+
+
+def delete_excluded_material_code_rows(sheet: Worksheet, logger: ProcessingLogger) -> int:
+    headers = _header_map(sheet)
+    _require_columns(headers, ["物料编码"], "主数据表")
+    code_col = headers["物料编码"]
+
+    rows_to_delete = [
+        row_index
+        for row_index in range(2, sheet.max_row + 1)
+        if _code_key(sheet.cell(row_index, code_col).value) in EXCLUDED_MATERIAL_CODES
+    ]
+    for row_index in reversed(rows_to_delete):
+        sheet.delete_rows(row_index, 1)
+
+    logger.info(
+        "指定物料编码订单行已删除："
+        f"{len(rows_to_delete)} 行；物料编码={', '.join(sorted(EXCLUDED_MATERIAL_CODES))}。"
+    )
+    return len(rows_to_delete)
+
+
+def cleanup_order_rows(sheet: Worksheet, logger: ProcessingLogger) -> OrderCleanupResult:
+    deleted_blank_rows = delete_blank_order_rows(sheet, logger)
+    deleted_excluded_rows = delete_excluded_material_code_rows(sheet, logger)
+    return OrderCleanupResult(
+        deleted_blank_order_rows=deleted_blank_rows,
+        deleted_excluded_material_rows=deleted_excluded_rows,
+    )
+
+
+def delete_coefficient_supplement_rows(
+    workbook: Workbook,
+    target_sheet_name: str,
+    logger: ProcessingLogger,
+) -> CoefficientSupplementRowsCleanupResult:
+    if COEFFICIENT_SUPPLEMENT_SHEET not in workbook.sheetnames:
+        logger.info(f"未找到“{COEFFICIENT_SUPPLEMENT_SHEET}”，无需删除系数补充对应订单行。")
+        return CoefficientSupplementRowsCleanupResult(deleted_rows=0, deleted_codes=0)
+
+    supplement = workbook[COEFFICIENT_SUPPLEMENT_SHEET]
+    supplement_headers = _header_map(supplement)
+    _require_columns(supplement_headers, ["物料编码"], COEFFICIENT_SUPPLEMENT_SHEET)
+    supplement_code_col = supplement_headers["物料编码"]
+    codes = {
+        _code_key(supplement.cell(row_index, supplement_code_col).value)
+        for row_index in range(2, supplement.max_row + 1)
+        if not _is_blank(supplement.cell(row_index, supplement_code_col).value)
+    }
+    codes.discard("")
+    if not codes:
+        logger.info(f"“{COEFFICIENT_SUPPLEMENT_SHEET}”没有可删除的物料编码。")
+        return CoefficientSupplementRowsCleanupResult(deleted_rows=0, deleted_codes=0)
+
+    sheet = workbook[target_sheet_name]
+    headers = _header_map(sheet)
+    _require_columns(headers, ["物料编码"], "主数据表")
+    main_code_col = headers["物料编码"]
+    rows_to_delete = [
+        row_index
+        for row_index in range(2, sheet.max_row + 1)
+        if _code_key(sheet.cell(row_index, main_code_col).value) in codes
+    ]
+    for row_index in reversed(rows_to_delete):
+        sheet.delete_rows(row_index, 1)
+
+    refresh_coefficient_supplement_sheet(workbook, sheet, [], logger)
+    create_still_missing_sheet(workbook, sheet, [], logger)
+    logger.info(
+        f"已删除系数补充对应订单行：{len(rows_to_delete)} 行；"
+        f"涉及物料编码 {len(codes)} 个。"
+    )
+    return CoefficientSupplementRowsCleanupResult(
+        deleted_rows=len(rows_to_delete),
+        deleted_codes=len(codes),
+    )
+
+
+def refresh_coefficient_lookup_formulas(sheet: Worksheet, logger: ProcessingLogger) -> int:
+    headers = _header_map(sheet)
+    if "系数" not in headers or "物料编码" not in headers:
+        logger.warning("未刷新系数查找公式：主数据表缺少 系数 或 物料编码。")
+        return 0
+
+    coefficient_col = headers["系数"]
+    code_col = headers["物料编码"]
+    code_letter = get_column_letter(code_col)
+    refreshed = 0
+    for row_index in range(2, sheet.max_row + 1):
+        cell = sheet.cell(row_index, coefficient_col)
+        value = cell.value
+        if not (isinstance(value, str) and value.strip().upper().startswith("=VLOOKUP(")):
+            continue
+        if "系数" not in value:
+            continue
+        new_formula = f"=VLOOKUP({code_letter}{row_index},系数!B:G,5,0)"
+        if value != new_formula:
+            cell.value = new_formula
+            refreshed += 1
+
+    logger.info(f"已刷新系数列 VLOOKUP 当前行引用：{refreshed} 行。")
+    return refreshed
 
 
 def create_coefficient_supplement_sheet(
@@ -124,17 +246,19 @@ def prepare_coefficients(
     logger: ProcessingLogger,
 ) -> CoefficientPrepareResult:
     formula_sheet = workbook[target_sheet_name]
-    deleted_rows = delete_blank_order_rows(formula_sheet, logger)
+    cleanup_result = cleanup_order_rows(formula_sheet, logger)
+    refresh_coefficient_lookup_formulas(formula_sheet, logger)
 
-    # The values workbook still reflects the pre-delete copy. Delete the same blank rows
+    # The values workbook still reflects the pre-delete copy. Delete the same rows
     # there so row numbers stay aligned when detecting #N/A rows.
     values_sheet = values_workbook[target_sheet_name]
-    if deleted_rows:
-        delete_blank_order_rows(values_sheet, logger)
+    if cleanup_result.deleted_blank_order_rows or cleanup_result.deleted_excluded_material_rows:
+        cleanup_order_rows(values_sheet, logger)
 
     missing_count = create_coefficient_supplement_sheet(workbook, formula_sheet, values_sheet, logger)
     return CoefficientPrepareResult(
-        deleted_blank_order_rows=deleted_rows,
+        deleted_blank_order_rows=cleanup_result.deleted_blank_order_rows,
+        deleted_excluded_material_rows=cleanup_result.deleted_excluded_material_rows,
         coefficient_missing_rows=missing_count,
     )
 
@@ -294,14 +418,71 @@ def apply_manual_coefficients(
     source_headers = _header_map(source_sheet)
     main_headers = _header_map(formula_sheet)
     _require_columns(source_headers, ["原始行号", "系数"], source_sheet.title)
-    _require_columns(main_headers, ["系数"], "主数据表")
+    _require_columns(main_headers, ["系数", "物料编码"], "主数据表")
 
     row_no_col = source_headers["原始行号"]
     source_coefficient_col = source_headers["系数"]
+    source_code_col = source_headers.get("物料编码")
     main_coefficient_col = main_headers["系数"]
+    main_code_col = main_headers["物料编码"]
 
     remaining_rows: list[int] = []
     applied_rows = 0
+    if source_code_col:
+        coefficient_by_code: dict[str, Any] = {}
+        remaining_codes: set[str] = set()
+        invalid_original_rows: list[int] = []
+
+        for row_index in range(2, source_sheet.max_row + 1):
+            code = _code_key(source_sheet.cell(row_index, source_code_col).value)
+            coefficient = source_sheet.cell(row_index, source_coefficient_col).value
+            if _is_manual_coefficient_value(coefficient):
+                if code:
+                    coefficient_by_code[code] = coefficient
+            elif code:
+                remaining_codes.add(code)
+            else:
+                original_row = source_sheet.cell(row_index, row_no_col).value
+                if _is_blank(original_row):
+                    continue
+                try:
+                    invalid_original_rows.append(int(original_row))
+                except (TypeError, ValueError):
+                    logger.warning(f"{source_sheet.title} 第 {row_index} 行原始行号无效，已跳过：{original_row}")
+
+        if coefficient_by_code:
+            for row_index in range(2, formula_sheet.max_row + 1):
+                code = _code_key(formula_sheet.cell(row_index, main_code_col).value)
+                if code not in coefficient_by_code:
+                    continue
+                current_value = formula_sheet.cell(row_index, main_coefficient_col).value
+                if not _is_missing_or_lookup_formula(current_value):
+                    continue
+                formula_sheet.cell(row_index, main_coefficient_col).value = coefficient_by_code[code]
+                applied_rows += 1
+
+        if remaining_codes:
+            for row_index in range(2, formula_sheet.max_row + 1):
+                code = _code_key(formula_sheet.cell(row_index, main_code_col).value)
+                if code in remaining_codes and _is_missing_or_lookup_formula(
+                    formula_sheet.cell(row_index, main_coefficient_col).value
+                ):
+                    remaining_rows.append(row_index)
+
+        remaining_rows.extend(
+            row_index
+            for row_index in invalid_original_rows
+            if 2 <= row_index <= formula_sheet.max_row
+            and _is_missing_or_lookup_formula(formula_sheet.cell(row_index, main_coefficient_col).value)
+        )
+        remaining_rows = sorted(set(remaining_rows))
+        create_still_missing_sheet(workbook, formula_sheet, remaining_rows, logger)
+        refresh_coefficient_supplement_sheet(workbook, formula_sheet, remaining_rows, logger)
+        logger.info(
+            f"已从“{source_sheet.title}”按物料编码回填手工系数：{applied_rows} 行；仍待补充 {len(remaining_rows)} 行。"
+        )
+        return ManualCoefficientApplyResult(applied_rows=applied_rows, remaining_rows=len(remaining_rows))
+
     for row_index in range(2, source_sheet.max_row + 1):
         original_row = source_sheet.cell(row_index, row_no_col).value
         coefficient = source_sheet.cell(row_index, source_coefficient_col).value
@@ -329,6 +510,9 @@ def apply_manual_coefficients(
 
 def find_manual_coefficient_sheet(workbook: Workbook) -> Worksheet:
     for sheet_name in ("系数待补充", COEFFICIENT_STILL_MISSING_SHEET, COEFFICIENT_SUPPLEMENT_SHEET):
+        if sheet_name in workbook.sheetnames and workbook[sheet_name].max_row > 1:
+            return workbook[sheet_name]
+    for sheet_name in ("系数待补充", COEFFICIENT_STILL_MISSING_SHEET, COEFFICIENT_SUPPLEMENT_SHEET):
         if sheet_name in workbook.sheetnames:
             return workbook[sheet_name]
     raise ClassifierError("未找到可用于手工系数回填的工作表：系数待补充、系数仍缺失 或 系数补充")
@@ -340,6 +524,12 @@ def _is_manual_coefficient_value(value: Any) -> bool:
     if isinstance(value, str) and value.strip().startswith("="):
         return False
     return True
+
+
+def _is_missing_or_lookup_formula(value: Any) -> bool:
+    if _is_blank(value) or _is_na(value):
+        return True
+    return isinstance(value, str) and value.strip().startswith("=")
 
 
 def _load_lookup_codes(lookup_sheet: Worksheet) -> set[Any]:

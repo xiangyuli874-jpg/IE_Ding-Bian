@@ -6,10 +6,14 @@
 
 - 自动查找周排产明细主工作表。
 - 生成系数、钣金型号、物料描述等待补充工作表，支持查询表回填和人工回填。
+- 支持一次性准备基础数据异常，连续摘取系数、钣金型号和物料描述待补项，避免前一项缺失时漏查后续项目。
+- 支持清理订单数为空、指定物料编码、物料描述缺失或系数补充对应的订单行，并刷新系数/钣金型号查找公式的当前行引用。
+- 支持从钣金型号查询表或 BOM 表补齐钣金型号；BOM 表可先写入候选值等待人工确认，也可按需直接回填。
 - 支持单独新增/刷新“标准单位/标准台数”相关列，方便在补齐基础数据后再计算标台数。
 - 支持 SKD、滚筒备注、T7/P7/T5/P5/追觅、T9/P9、T10/P10、C6、复式、企鹅、滚筒收尾、波轮收尾和额外订单信息汇总等排单分解阶段。
 - 根据工作簿内的分类规则配置生成分类结果、未分类数据和分类汇总表。
-- 可生成“排单分解表明细”“各线体分类明细表”，并对额外订单信息命中的钣金型号列上色。
+- 可生成“排单分解表明细”“各线体分类明细表”，分别汇总订单数和标台数，并对额外订单信息命中的钣金型号列上色。
+- 额外订单信息汇总会追加产能规划来源指标：外协烘道数量、滚筒喷粉数量、波轮喷粉数量、PCM 板中需喷涂前门板的箱体数量。
 - 在处理结果中写入处理日志，并保留有限数量的历史备份。
 - 清理旧结果时会跳过 Excel 打开的临时锁文件，避免误处理 `~$` 开头的临时文件。
 - 提供 `电脑自动离线程序`，月底可双击启动分步向导，按“自动查询优先、必要时手工补充”的方式跑完整月度流程。
@@ -51,6 +55,18 @@ python run_classifier.py --input "<周排产计划明细.xlsx>" --output-dir "ou
 
 ## 常用处理阶段
 
+一次性准备系数、钣金型号和物料描述基础数据异常：
+
+```powershell
+python run_classifier.py --input "<周排产计划明细.xlsx>" --output-dir "outputs" --stage prepare-foundation-data
+```
+
+清理订单数为空和指定物料编码订单行，并刷新查找公式：
+
+```powershell
+python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage cleanup-order-rows
+```
+
 生成“系数补充”并暂停：
 
 ```powershell
@@ -81,6 +97,24 @@ python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outpu
 python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage fill-sheet-metal --sheet-metal-lookup "<钣金型号查询表.xlsx或xls>"
 ```
 
+使用 BOM 表把箱体组件候选写入“钣金型号补充”，等待人工确认：
+
+```powershell
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage suggest-sheet-metal-bom --sheet-metal-bom-lookup "<钣金型号BOM表.xlsx>"
+```
+
+确认“钣金型号补充”后，将候选或手工值回填到主表：
+
+```powershell
+python run_classifier.py --input "<已确认钣金型号补充的结果.xlsx>" --output-dir "outputs" --stage apply-manual-sheet-metal
+```
+
+如已明确不需要人工确认，也可以用 BOM 表直接回填当前仍缺失或异常的钣金型号：
+
+```powershell
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage fill-sheet-metal-bom --sheet-metal-bom-lookup "<钣金型号BOM表.xlsx>"
+```
+
 生成“物料描述补充”：
 
 ```powershell
@@ -97,6 +131,24 @@ python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs"
 
 ```powershell
 python run_classifier.py --input "<已手工补好物料描述的结果.xlsx>" --output-dir "outputs" --stage apply-manual-material-description
+```
+
+清理“物料描述补充”中确认无需上单的缺失订单行：
+
+```powershell
+python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage cleanup-missing-material-description-rows
+```
+
+清理“系数补充”中确认无需处理的对应订单行：
+
+```powershell
+python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage cleanup-coefficient-supplement-rows
+```
+
+刷新系数 VLOOKUP 当前行引用：
+
+```powershell
+python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage refresh-coefficient-formulas
 ```
 
 单独新增或刷新“标准单位/标准台数”相关列：
@@ -153,6 +205,12 @@ python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs"
 - 波轮特殊内筒-8升9内筒：波轮线，钣金型号含“8升9”。
 - 波轮箱体-10kg：波轮线，钣金型号含“10kg”。
 - 波轮箱体-彩板：波轮线，钣金型号含“PCM”，并剔除波轮 CKD。
+- 外协烘道数量：从“产能规划”中查找“外协烘道”右侧数量。
+- 滚筒喷粉数量：从“产能规划”的“产能预算-喷涂”表中汇总项目为“滚筒”、类别为“喷涂”的数量。
+- 波轮喷粉数量：从“产能规划”的“产能预算-喷涂”表中汇总项目为“波轮”、类别为“喷涂”的数量。
+- PCM板中需喷涂前门板的箱体数量：汇总“外发/改PCM”下“改PCM箱体(未改门板)”和“改PCM箱体(未改门板)-金属粉”的数量。
+
+“各线体分类明细表”会按滚筒/波轮分别输出订单数和标台数明细。标台数优先读取工作簿中的“标台数”列，缺失时按系数乘订单数计算，展示时保留 1 位小数。
 
 ## 电脑自动离线程序
 
@@ -224,9 +282,10 @@ streamlit run 手机自动离线程序/web_app.py
 技能会：
 
 1. 使用只读脚本检查主工作表、待补数据和最终结果表状态。
-2. 按系数、钣金型号、物料描述、标准台数、完整排单分解和最终分类的顺序执行。
+2. 优先并行准备系数、钣金型号、物料描述三类基础数据异常，再按标准台数、主表格式、完整排单分解、额外订单汇总和最终分类的顺序执行。
 3. 缺少查询表或仍需人工补充时暂停，并明确返回当前结果文件和下一步操作。
 4. 每次使用上一阶段的新输出继续处理，不修改原始工作簿。
+5. 只有基础数据无待补、排单分解表和各线体明细表已生成、额外订单汇总包含 4 个产能规划指标，并且 `classify` 已生成“分类结果汇总表”和“未分类数据”后，才视为定编完成。
 
 只读检查脚本也可以单独运行：
 
@@ -239,10 +298,17 @@ python skills/dingbian/scripts/inspect_workbook.py "<工作簿.xlsx>"
 ## 支持的 stage
 
 - `prepare-coefficients`：生成系数补充表。
+- `prepare-foundation-data`：一次性生成系数、钣金型号、物料描述补充表，并完成订单行清理和公式刷新。
+- `cleanup-order-rows`：删除订单数空白和指定物料编码订单行，并刷新系数/钣金型号公式。
+- `cleanup-missing-material-description-rows`：删除物料描述缺失的未上单订单行，并刷新相关公式。
+- `cleanup-coefficient-supplement-rows`：删除“系数补充”对应的订单行，并刷新相关公式。
+- `refresh-coefficient-formulas`：刷新系数 VLOOKUP 当前行引用。
 - `fill-coefficients`：从系数查询表回填。
 - `apply-manual-coefficients`：从人工填写列回填系数。
 - `prepare-sheet-metal`：生成钣金型号补充表。
 - `fill-sheet-metal`：从钣金型号查询表回填。
+- `suggest-sheet-metal-bom`：按 BOM 号把箱体组件候选写入“钣金型号补充”，等待人工确认。
+- `fill-sheet-metal-bom`：按 BOM 号直接回填当前缺失或异常的钣金型号。
 - `apply-manual-sheet-metal`：从人工填写列回填钣金型号。
 - `prepare-material-description`：生成物料描述补充表。
 - `fill-material-description`：从物料描述查询表按物料编码回填。

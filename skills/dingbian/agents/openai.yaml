@@ -1,4 +1,4 @@
 interface:
   display_name: "定编自动化"
-  short_description: "处理月度排产计划，自动完成基础补齐、完整排单分解与定编分类"
-  default_prompt: "Use $dingbian to process this monthly production plan and complete the full staffing classification workflow."
+  short_description: "处理月度排产计划，完成基础补齐、排单分解和最终分类"
+  default_prompt: "Use $dingbian to process this monthly production plan through foundation data fixes, decomposition, and final classification."
