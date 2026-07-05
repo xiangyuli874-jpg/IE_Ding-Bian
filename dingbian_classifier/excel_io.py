@@ -34,6 +34,15 @@ def load_workbook_pair(output_path: Path) -> tuple[Workbook, Workbook]:
     return formula_wb, values_wb
 
 
+def reset_auto_filter(sheet: Worksheet) -> None:
+    """Keep filter dropdowns but remove any active criteria saved in Excel."""
+    if sheet.max_row < 1 or sheet.max_column < 1:
+        return
+    sheet.auto_filter.ref = sheet.dimensions
+    sheet.auto_filter.filterColumn = []
+    sheet.auto_filter.sortState = None
+
+
 def read_main_table(values_sheet: Worksheet) -> tuple[list[str], list[dict[str, Any]], list[list[Any]]]:
     raw_headers = [normalize_header(cell.value) for cell in values_sheet[1]]
     headers = deduplicate_headers(raw_headers)

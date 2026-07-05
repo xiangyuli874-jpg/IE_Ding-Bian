@@ -79,6 +79,20 @@ def choose_sheet_metal_lookup() -> Path | None:
     return Path(selected)
 
 
+def choose_sheet_metal_bom_lookup() -> Path | None:
+    selected = filedialog.askopenfilename(
+        title="请选择钣金型号 BOM 表",
+        initialdir=str(DEFAULT_INPUT_DIR),
+        filetypes=[
+            ("Excel 文件", "*.xlsx *.xlsm *.xls"),
+            ("所有文件", "*.*"),
+        ],
+    )
+    if not selected:
+        return None
+    return Path(selected)
+
+
 def choose_material_description_lookup() -> Path | None:
     return choose_excel_file("请选择物料描述查询表", DEFAULT_INPUT_DIR, include_text=True)
 
@@ -128,6 +142,28 @@ def sheet_has_data_rows(workbook_path: Path, sheet_names: list[str]) -> bool:
         return False
     finally:
         workbook.close()
+
+
+def has_coefficient_pending(workbook_path: Path) -> bool:
+    return sheet_has_data_rows(workbook_path, COEFFICIENT_PENDING_SHEETS)
+
+
+def has_sheet_metal_pending(workbook_path: Path) -> bool:
+    return sheet_has_data_rows(workbook_path, SHEET_METAL_PENDING_SHEETS)
+
+
+def has_material_description_pending(workbook_path: Path) -> bool:
+    return sheet_has_data_rows(workbook_path, MATERIAL_DESCRIPTION_PENDING_SHEETS)
+
+
+def next_foundation_step(workbook_path: Path) -> str:
+    if has_coefficient_pending(workbook_path):
+        return "choose_coefficient_lookup"
+    if has_sheet_metal_pending(workbook_path):
+        return "choose_sheet_metal_lookup"
+    if has_material_description_pending(workbook_path):
+        return "choose_material_description_lookup"
+    return "final_stages"
 
 
 def open_output_dir(output_dir: Path, log_path: Path) -> None:
@@ -203,13 +239,19 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
     while True:
         write_log(log_path, f"向导步骤：{step}")
 
-        if step == "prepare_coefficients":
-            current_file = run_stage(current_file, output_dir, "prepare-coefficients", log_path)
-            if sheet_has_data_rows(current_file, COEFFICIENT_PENDING_SHEETS):
-                step = "choose_coefficient_lookup"
-                state = make_state(step, current_file, log_path, output_dir)
-                continue
-            step = "prepare_sheet_metal"
+        if step == "prepare_standard_units":
+            step = "final_stages"
+            state = make_state(step, current_file, log_path, output_dir)
+            continue
+
+        if step in {
+            "prepare_foundation_data",
+            "prepare_coefficients",
+            "prepare_sheet_metal",
+            "prepare_material_description",
+        }:
+            current_file = run_stage(current_file, output_dir, "prepare-foundation-data", log_path)
+            step = next_foundation_step(current_file)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
@@ -228,7 +270,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                 log_path,
                 coefficient_lookup=lookup,
             )
-            if sheet_has_data_rows(current_file, COEFFICIENT_PENDING_SHEETS):
+            if has_coefficient_pending(current_file):
                 return pause_for_manual(
                     state=make_state("wait_manual_coefficients", current_file, log_path, output_dir),
                     workbook_path=current_file,
@@ -236,13 +278,13 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="系数补充 / 系数仍缺失",
                 )
-            step = "prepare_sheet_metal"
+            step = next_foundation_step(current_file)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
         if step == "wait_manual_coefficients":
             current_file = run_stage(current_file, output_dir, "apply-manual-coefficients", log_path)
-            if sheet_has_data_rows(current_file, COEFFICIENT_PENDING_SHEETS):
+            if has_coefficient_pending(current_file):
                 return pause_for_manual(
                     state=make_state("wait_manual_coefficients", current_file, log_path, output_dir),
                     workbook_path=current_file,
@@ -250,26 +292,24 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="系数补充 / 系数仍缺失",
                 )
-            step = "prepare_sheet_metal"
-            state = make_state(step, current_file, log_path, output_dir)
-            continue
-
-        if step == "prepare_sheet_metal":
-            current_file = run_stage(current_file, output_dir, "prepare-sheet-metal", log_path)
-            if sheet_has_data_rows(current_file, SHEET_METAL_PENDING_SHEETS):
-                step = "choose_sheet_metal_lookup"
-                state = make_state(step, current_file, log_path, output_dir)
-                continue
-            step = "prepare_material_description"
+            step = next_foundation_step(current_file)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
         if step == "choose_sheet_metal_lookup":
             lookup = choose_sheet_metal_lookup()
             if lookup is None:
+                use_bom = messagebox.askyesno(
+                    "钣金型号查询表未选择",
+                    "没有选择钣金型号查询表。\n\n是否改为选择 BOM 表，先生成钣金型号候选供你确认？",
+                )
+                if use_bom:
+                    step = "choose_sheet_metal_bom_lookup"
+                    state = make_state(step, current_file, log_path, output_dir)
+                    continue
                 return pause_for_lookup(
                     state=make_state(step, current_file, log_path, output_dir),
-                    message="已暂停：请下次继续时选择钣金型号查询表。",
+                    message="已暂停：请下次继续时选择钣金型号查询表，或选择 BOM 表生成候选。",
                     log_path=log_path,
                 )
             current_file = run_stage(
@@ -279,7 +319,15 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                 log_path,
                 sheet_metal_lookup=lookup,
             )
-            if sheet_has_data_rows(current_file, SHEET_METAL_PENDING_SHEETS):
+            if has_sheet_metal_pending(current_file):
+                use_bom = messagebox.askyesno(
+                    "钣金型号仍有缺失",
+                    "钣金型号查询表仍有覆盖不到的行。\n\n是否选择 BOM 表，先把箱体组件候选写入“钣金型号补充”供你确认？",
+                )
+                if use_bom:
+                    step = "choose_sheet_metal_bom_lookup"
+                    state = make_state(step, current_file, log_path, output_dir)
+                    continue
                 return pause_for_manual(
                     state=make_state("wait_manual_sheet_metal", current_file, log_path, output_dir),
                     workbook_path=current_file,
@@ -287,13 +335,36 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="钣金型号补充",
                 )
-            step = "prepare_material_description"
+            step = next_foundation_step(current_file)
             state = make_state(step, current_file, log_path, output_dir)
             continue
+
+        if step == "choose_sheet_metal_bom_lookup":
+            lookup = choose_sheet_metal_bom_lookup()
+            if lookup is None:
+                return pause_for_lookup(
+                    state=make_state(step, current_file, log_path, output_dir),
+                    message="已暂停：请下次继续时选择钣金型号 BOM 表，或回到钣金型号补充表手工填写。",
+                    log_path=log_path,
+                )
+            current_file = run_stage(
+                current_file,
+                output_dir,
+                "suggest-sheet-metal-bom",
+                log_path,
+                sheet_metal_bom_lookup=lookup,
+            )
+            return pause_for_manual(
+                state=make_state("wait_manual_sheet_metal", current_file, log_path, output_dir),
+                workbook_path=current_file,
+                output_dir=output_dir,
+                log_path=log_path,
+                sheets="钣金型号补充（请确认 BOM 候选，必要时手工修改）",
+            )
 
         if step == "wait_manual_sheet_metal":
             current_file = run_stage(current_file, output_dir, "apply-manual-sheet-metal", log_path)
-            if sheet_has_data_rows(current_file, SHEET_METAL_PENDING_SHEETS):
+            if has_sheet_metal_pending(current_file):
                 return pause_for_manual(
                     state=make_state("wait_manual_sheet_metal", current_file, log_path, output_dir),
                     workbook_path=current_file,
@@ -301,17 +372,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="钣金型号补充",
                 )
-            step = "prepare_material_description"
-            state = make_state(step, current_file, log_path, output_dir)
-            continue
-
-        if step == "prepare_material_description":
-            current_file = run_stage(current_file, output_dir, "prepare-material-description", log_path)
-            if sheet_has_data_rows(current_file, MATERIAL_DESCRIPTION_PENDING_SHEETS):
-                step = "choose_material_description_lookup"
-                state = make_state(step, current_file, log_path, output_dir)
-                continue
-            step = "prepare_standard_units"
+            step = next_foundation_step(current_file)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
@@ -330,7 +391,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                 log_path,
                 material_description_lookup=lookup,
             )
-            if sheet_has_data_rows(current_file, MATERIAL_DESCRIPTION_PENDING_SHEETS):
+            if has_material_description_pending(current_file):
                 return pause_for_manual(
                     state=make_state("wait_manual_material_description", current_file, log_path, output_dir),
                     workbook_path=current_file,
@@ -338,13 +399,13 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="物料描述补充 / 物料描述仍缺失",
                 )
-            step = "prepare_standard_units"
+            step = next_foundation_step(current_file)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
         if step == "wait_manual_material_description":
             current_file = run_stage(current_file, output_dir, "apply-manual-material-description", log_path)
-            if sheet_has_data_rows(current_file, MATERIAL_DESCRIPTION_PENDING_SHEETS):
+            if has_material_description_pending(current_file):
                 return pause_for_manual(
                     state=make_state("wait_manual_material_description", current_file, log_path, output_dir),
                     workbook_path=current_file,
@@ -352,13 +413,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="物料描述补充 / 物料描述仍缺失",
                 )
-            step = "prepare_standard_units"
-            state = make_state(step, current_file, log_path, output_dir)
-            continue
-
-        if step == "prepare_standard_units":
-            current_file = run_stage(current_file, output_dir, "prepare-standard-units", log_path)
-            step = "final_stages"
+            step = next_foundation_step(current_file)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
@@ -396,7 +451,7 @@ def main() -> int:
                 root.destroy()
                 return 0
             validate_input_file(input_path)
-            state = make_state("prepare_coefficients", input_path, log_path, output_dir)
+            state = make_state("prepare_foundation_data", input_path, log_path, output_dir)
 
         output_path = run_wizard(state)
     except (ClassifierError, FileNotFoundError, ValueError, json.JSONDecodeError) as exc:

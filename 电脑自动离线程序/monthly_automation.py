@@ -24,7 +24,23 @@ DEFAULT_CONFIG_PATH = PROGRAM_DIR / "monthly_flow.json"
 DEFAULT_LOG_DIR = PROGRAM_DIR / "logs"
 DEFAULT_INPUT_DIR = PROJECT_DIR / "inputs"
 DEFAULT_OUTPUT_DIR = PROJECT_DIR / "outputs"
-DEFAULT_STAGES = ["decompose-extra-summary", "classify"]
+DEFAULT_STAGES = [
+    "prepare-standard-units",
+    "format-main-sheet",
+    "decompose-skd",
+    "decompose-rolling-remarks",
+    "decompose-t7p7t5p5-dreame",
+    "decompose-t9p9",
+    "decompose-t9p9-dryer",
+    "decompose-t10p10",
+    "decompose-c6-heat-pump-dryer",
+    "decompose-composite-penguin-c6",
+    "decompose-rolling-final",
+    "decompose-wave-basic",
+    "decompose-wave-final",
+    "decompose-extra-summary",
+    "classify",
+]
 SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm", ".xls"}
 
 
@@ -112,6 +128,7 @@ def run_stage(
     *,
     coefficient_lookup: Path | None = None,
     sheet_metal_lookup: Path | None = None,
+    sheet_metal_bom_lookup: Path | None = None,
     material_description_lookup: Path | None = None,
 ) -> Path:
     validate_input_file(input_path)
@@ -122,6 +139,8 @@ def run_stage(
         write_log(log_path, f"系数查询表：{coefficient_lookup}")
     if sheet_metal_lookup is not None:
         write_log(log_path, f"钣金型号查询表：{sheet_metal_lookup}")
+    if sheet_metal_bom_lookup is not None:
+        write_log(log_path, f"钣金型号BOM表：{sheet_metal_bom_lookup}")
     if material_description_lookup is not None:
         write_log(log_path, f"物料描述查询表：{material_description_lookup}")
     try:
@@ -133,6 +152,7 @@ def run_stage(
                     stage=stage,
                     coefficient_lookup=coefficient_lookup,
                     sheet_metal_lookup=sheet_metal_lookup,
+                    sheet_metal_bom_lookup=sheet_metal_bom_lookup,
                     material_description_lookup=material_description_lookup,
                 )
     except Exception as exc:

@@ -3,7 +3,7 @@
 一、用途
 本文件夹是手机、iPad、电脑浏览器使用的网页自动化入口。
 用户上传 Excel 后，网页会执行 monthly_flow.json 中配置的流程：
-decompose-extra-summary -> classify
+prepare-standard-units -> format-main-sheet -> decompose-skd -> decompose-rolling-remarks -> decompose-t7p7t5p5-dreame -> decompose-t9p9 -> decompose-t9p9-dryer -> decompose-t10p10 -> decompose-c6-heat-pump-dryer -> decompose-composite-penguin-c6 -> decompose-rolling-final -> decompose-wave-basic -> decompose-wave-final -> decompose-extra-summary -> classify
 处理完成后可直接下载结果文件和运行日志。
 
 二、本地测试
@@ -34,7 +34,7 @@ app_password = "你的密码"
 DINGBIAN_APP_PASSWORD=你的密码
 
 五、注意事项
-1. 当前云端网页需要上传已经包含“类型”列的当前结果文件，不适合直接上传完全原始表。
+1. 当前云端网页需要上传基础数据已经补齐、可进入最终流程的当前结果文件，不适合直接上传完全原始表。
 2. 免费云平台可能会休眠，第一次打开网页可能需要等待几十秒。
 3. 云端通常没有 Windows Microsoft Excel，程序会自动跳过 Excel COM 重新另存步骤。
 4. 网页处理使用云平台临时目录，处理完成后只向用户提供下载，不提供长期文件存储。

@@ -28,7 +28,7 @@ from .decomposition import (
     write_extra_order_summary,
 )
 from .excel_repair import resave_with_excel_if_available
-from .excel_io import build_output_path, copy_workbook, load_workbook_pair, move_auxiliary_sheets_after, read_main_table
+from .excel_io import build_output_path, copy_workbook, load_workbook_pair, move_auxiliary_sheets_after, read_main_table, reset_auto_filter
 from .formatting import format_main_sheet
 from .history import backup_current_result, cleanup_output_results
 from .logger import ProcessingLogger
@@ -53,6 +53,7 @@ from .sheet_detector import find_target_sheet
 
 
 def set_active_sheet(workbook, sheet_name: str, logger: ProcessingLogger) -> None:
+    reset_auto_filter(workbook[sheet_name])
     workbook.active = workbook.sheetnames.index(sheet_name)
     logger.info(f"已设置默认打开工作表：{sheet_name}")
 
@@ -100,6 +101,7 @@ def run(
         logger.info(
             "基础数据异常并行准备完成："
             f"订单数空白删除 {coefficient_result.deleted_blank_order_rows} 行；"
+            f"线体空白删除 {coefficient_result.deleted_blank_line_rows} 行；"
             f"指定物料编码删除 {coefficient_result.deleted_excluded_material_rows} 行；"
             f"系数待补 {coefficient_result.coefficient_missing_rows} 行；"
             f"钣金型号待补 {sheet_metal_result.sheet_metal_missing_rows} 行；"
@@ -122,6 +124,7 @@ def run(
         logger.info(
             "订单行清理完成："
             f"订单数空白删除 {cleanup_result.deleted_blank_order_rows} 行；"
+            f"线体空白删除 {cleanup_result.deleted_blank_line_rows} 行；"
             f"指定物料编码删除 {cleanup_result.deleted_excluded_material_rows} 行；"
             f"系数公式刷新 {refreshed} 行；"
             f"钣金型号公式刷新 {sheet_metal_refreshed} 行。"

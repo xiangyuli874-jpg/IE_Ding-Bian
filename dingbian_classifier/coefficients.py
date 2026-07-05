@@ -27,6 +27,7 @@ EXCLUDED_MATERIAL_CODES = {"Z4U6010100"}
 @dataclass
 class CoefficientPrepareResult:
     deleted_blank_order_rows: int
+    deleted_blank_line_rows: int
     deleted_excluded_material_rows: int
     coefficient_missing_rows: int
 
@@ -46,6 +47,7 @@ class ManualCoefficientApplyResult:
 @dataclass
 class OrderCleanupResult:
     deleted_blank_order_rows: int
+    deleted_blank_line_rows: int
     deleted_excluded_material_rows: int
 
 
@@ -102,6 +104,23 @@ def delete_blank_order_rows(sheet: Worksheet, logger: ProcessingLogger) -> int:
     return len(rows_to_delete)
 
 
+def delete_blank_line_rows(sheet: Worksheet, logger: ProcessingLogger) -> int:
+    headers = _header_map(sheet)
+    _require_columns(headers, ["线体"], "主数据表")
+    line_col = headers["线体"]
+
+    rows_to_delete = [
+        row_index
+        for row_index in range(2, sheet.max_row + 1)
+        if _is_blank(sheet.cell(row_index, line_col).value)
+    ]
+    for row_index in reversed(rows_to_delete):
+        sheet.delete_rows(row_index, 1)
+
+    logger.info(f"线体为空白的行已删除：{len(rows_to_delete)} 行。")
+    return len(rows_to_delete)
+
+
 def delete_excluded_material_code_rows(sheet: Worksheet, logger: ProcessingLogger) -> int:
     headers = _header_map(sheet)
     _require_columns(headers, ["物料编码"], "主数据表")
@@ -124,9 +143,11 @@ def delete_excluded_material_code_rows(sheet: Worksheet, logger: ProcessingLogge
 
 def cleanup_order_rows(sheet: Worksheet, logger: ProcessingLogger) -> OrderCleanupResult:
     deleted_blank_rows = delete_blank_order_rows(sheet, logger)
+    deleted_blank_line_rows = delete_blank_line_rows(sheet, logger)
     deleted_excluded_rows = delete_excluded_material_code_rows(sheet, logger)
     return OrderCleanupResult(
         deleted_blank_order_rows=deleted_blank_rows,
+        deleted_blank_line_rows=deleted_blank_line_rows,
         deleted_excluded_material_rows=deleted_excluded_rows,
     )
 
@@ -252,12 +273,17 @@ def prepare_coefficients(
     # The values workbook still reflects the pre-delete copy. Delete the same rows
     # there so row numbers stay aligned when detecting #N/A rows.
     values_sheet = values_workbook[target_sheet_name]
-    if cleanup_result.deleted_blank_order_rows or cleanup_result.deleted_excluded_material_rows:
+    if (
+        cleanup_result.deleted_blank_order_rows
+        or cleanup_result.deleted_blank_line_rows
+        or cleanup_result.deleted_excluded_material_rows
+    ):
         cleanup_order_rows(values_sheet, logger)
 
     missing_count = create_coefficient_supplement_sheet(workbook, formula_sheet, values_sheet, logger)
     return CoefficientPrepareResult(
         deleted_blank_order_rows=cleanup_result.deleted_blank_order_rows,
+        deleted_blank_line_rows=cleanup_result.deleted_blank_line_rows,
         deleted_excluded_material_rows=cleanup_result.deleted_excluded_material_rows,
         coefficient_missing_rows=missing_count,
     )

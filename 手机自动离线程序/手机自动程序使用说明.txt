@@ -2,7 +2,7 @@
 
 一、这个文件夹是什么
 “手机自动离线程序”文件夹用于放置手机、iPad、电脑浏览器都能使用的网页入口。
-它不是在手机本地运行 Python，而是部署到 Streamlit Community Cloud 等免费云平台后，通过网页上传 Excel 并下载处理结果。
+它不是在手机本地运行 Python，而是部署到 Streamlit Community Cloud 等云平台后，通过网页上传 Excel 并下载处理结果。
 
 二、包含的文件
 web_app.py              网页入口程序
@@ -12,20 +12,21 @@ monthly_flow.json       当前默认处理流程配置
 手机自动程序使用说明.txt  本说明
 
 三、当前默认流程
-monthly_flow.json 当前配置为：
-decompose-extra-summary -> classify
+monthly_flow.json 当前配置为完整下游定编流程：
+prepare-standard-units -> format-main-sheet -> decompose-skd -> decompose-rolling-remarks -> decompose-t7p7t5p5-dreame -> decompose-t9p9 -> decompose-t9p9-dryer -> decompose-t10p10 -> decompose-c6-heat-pump-dryer -> decompose-composite-penguin-c6 -> decompose-rolling-final -> decompose-wave-basic -> decompose-wave-final -> decompose-extra-summary -> classify
 
-这表示网页会先生成“额外订单信息汇总”和“各线体分类明细表”，再生成分类结果。
+这表示网页会先刷新标台数和主表格式，再执行滚筒、波轮完整分解，最后生成额外订单信息汇总、各线体分类明细表和最终分类结果。
 
 四、使用方式
-1. 先按照“云端网页部署说明.txt”部署到 Streamlit Community Cloud。
+1. 先按照“云端网页部署说明.txt”部署到云端平台。
 2. 部署成功后，用手机、iPad 或电脑打开网页链接。
-3. 上传已经包含“类型”列的 Excel 当前结果文件。
+3. 上传基础数据已补齐、可以进入完整分解的 Excel 当前结果文件。
 4. 点击“开始处理”。
 5. 处理完成后下载结果文件和运行日志。
 
 五、注意事项
-1. 当前网页入口不适合直接上传完全原始 Excel，因为 decompose-extra-summary 依赖主表中的“类型”列。
-2. 如果设置了访问密码，打开网页后需要先输入密码。
-3. 免费云平台可能休眠，第一次打开页面可能需要等待几十秒。
-4. 上传的 Excel 会在云端临时目录中处理，处理完成后提供下载，不作为长期网盘保存。
+1. 当前网页入口不做电脑向导那种多轮弹窗交互，不适合直接上传仍缺系数、钣金型号或物料描述的原始 Excel。
+2. 如果原始表还需要选择系数查询表、钣金型号查询表、BOM 表或物料描述查询表，请优先使用“电脑自动离线程序”的分步向导。
+3. 如果设置了访问密码，打开网页后需要先输入密码。
+4. 免费云平台可能休眠，第一次打开页面可能需要等待几十秒。
+5. 上传的 Excel 会在云端临时目录中处理，处理完成后提供下载，不作为长期网盘保存。

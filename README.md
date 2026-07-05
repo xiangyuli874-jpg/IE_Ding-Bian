@@ -7,7 +7,7 @@
 - 自动查找周排产明细主工作表。
 - 生成系数、钣金型号、物料描述等待补充工作表，支持查询表回填和人工回填。
 - 支持一次性准备基础数据异常，连续摘取系数、钣金型号和物料描述待补项，避免前一项缺失时漏查后续项目。
-- 支持清理订单数为空、指定物料编码、物料描述缺失或系数补充对应的订单行，并刷新系数/钣金型号查找公式的当前行引用。
+- 支持清理订单数为空、线体为空、指定物料编码、物料描述缺失或系数补充对应的订单行，并刷新系数/钣金型号查找公式的当前行引用。
 - 支持从钣金型号查询表或 BOM 表补齐钣金型号；BOM 表可先写入候选值等待人工确认，也可按需直接回填。
 - 支持单独新增/刷新“标准单位/标准台数”相关列，方便在补齐基础数据后再计算标台数。
 - 支持 SKD、滚筒备注、T7/P7/T5/P5/追觅、T9/P9、T10/P10、C6、复式、企鹅、滚筒收尾、波轮收尾和额外订单信息汇总等排单分解阶段。
@@ -61,7 +61,7 @@ python run_classifier.py --input "<周排产计划明细.xlsx>" --output-dir "ou
 python run_classifier.py --input "<周排产计划明细.xlsx>" --output-dir "outputs" --stage prepare-foundation-data
 ```
 
-清理订单数为空和指定物料编码订单行，并刷新查找公式：
+清理订单数为空、线体为空和指定物料编码订单行，并刷新查找公式：
 
 ```powershell
 python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage cleanup-order-rows
@@ -236,12 +236,27 @@ python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs"
 ```json
 {
   "stages": [
+    "prepare-standard-units",
+    "format-main-sheet",
+    "decompose-skd",
+    "decompose-rolling-remarks",
+    "decompose-t7p7t5p5-dreame",
+    "decompose-t9p9",
+    "decompose-t9p9-dryer",
+    "decompose-t10p10",
+    "decompose-c6-heat-pump-dryer",
+    "decompose-composite-penguin-c6",
+    "decompose-rolling-final",
+    "decompose-wave-basic",
+    "decompose-wave-final",
     "decompose-extra-summary",
     "classify"
   ],
   "output_dir": "outputs"
 }
 ```
+
+最终流程会先刷新标台数、整理主表格式，再按滚筒线和波轮线完整分解，最后生成额外订单信息汇总、各线体分类明细和最终分类结果。
 
 电脑向导会在暂停时保存 `电脑自动离线程序/wizard_state.json`，再次启动时可选择继续上次流程；全部完成后会自动清除该状态文件。每次运行会在 `电脑自动离线程序/logs` 下写入日志，处理完成后自动打开 `outputs` 文件夹。
 
@@ -266,6 +281,19 @@ streamlit run 手机自动离线程序/web_app.py
 ```json
 {
   "stages": [
+    "prepare-standard-units",
+    "format-main-sheet",
+    "decompose-skd",
+    "decompose-rolling-remarks",
+    "decompose-t7p7t5p5-dreame",
+    "decompose-t9p9",
+    "decompose-t9p9-dryer",
+    "decompose-t10p10",
+    "decompose-c6-heat-pump-dryer",
+    "decompose-composite-penguin-c6",
+    "decompose-rolling-final",
+    "decompose-wave-basic",
+    "decompose-wave-final",
     "decompose-extra-summary",
     "classify"
   ],
@@ -273,7 +301,7 @@ streamlit run 手机自动离线程序/web_app.py
 }
 ```
 
-网页入口需要上传已经包含“类型”列的当前结果文件，适合在排单分解完成后生成额外订单信息汇总和最终分类结果。可通过 Streamlit Secrets 设置 `app_password`，或通过环境变量 `DINGBIAN_APP_PASSWORD` 设置访问密码。
+网页入口需要上传基础数据已经补齐、可进入最终流程的当前结果文件。程序会刷新标台数和主表格式，继续执行完整分解、额外订单信息汇总和最终分类。可通过 Streamlit Secrets 设置 `app_password`，或通过环境变量 `DINGBIAN_APP_PASSWORD` 设置访问密码。
 
 ## Codex 定编技能
 
@@ -299,7 +327,7 @@ python skills/dingbian/scripts/inspect_workbook.py "<工作簿.xlsx>"
 
 - `prepare-coefficients`：生成系数补充表。
 - `prepare-foundation-data`：一次性生成系数、钣金型号、物料描述补充表，并完成订单行清理和公式刷新。
-- `cleanup-order-rows`：删除订单数空白和指定物料编码订单行，并刷新系数/钣金型号公式。
+- `cleanup-order-rows`：删除订单数空白、线体空白和指定物料编码订单行，并刷新系数/钣金型号公式。
 - `cleanup-missing-material-description-rows`：删除物料描述缺失的未上单订单行，并刷新相关公式。
 - `cleanup-coefficient-supplement-rows`：删除“系数补充”对应的订单行，并刷新相关公式。
 - `refresh-coefficient-formulas`：刷新系数 VLOOKUP 当前行引用。

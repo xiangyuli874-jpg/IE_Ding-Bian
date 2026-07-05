@@ -24,7 +24,23 @@ DEFAULT_CONFIG_PATH = PROGRAM_DIR / "monthly_flow.json"
 DEFAULT_LOG_DIR = PROGRAM_DIR / "logs"
 DEFAULT_INPUT_DIR = PROJECT_DIR / "inputs"
 DEFAULT_OUTPUT_DIR = PROJECT_DIR / "outputs"
-DEFAULT_STAGES = ["decompose-extra-summary", "classify"]
+DEFAULT_STAGES = [
+    "prepare-standard-units",
+    "format-main-sheet",
+    "decompose-skd",
+    "decompose-rolling-remarks",
+    "decompose-t7p7t5p5-dreame",
+    "decompose-t9p9",
+    "decompose-t9p9-dryer",
+    "decompose-t10p10",
+    "decompose-c6-heat-pump-dryer",
+    "decompose-composite-penguin-c6",
+    "decompose-rolling-final",
+    "decompose-wave-basic",
+    "decompose-wave-final",
+    "decompose-extra-summary",
+    "classify",
+]
 SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm", ".xls"}
 
 

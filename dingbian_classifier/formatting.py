@@ -17,6 +17,7 @@ TYPE_FIELD = "类型"
 REMARK_FIELD = "备注"
 HEADER_BLUE = "0070C0"
 HIDDEN_FIELDS = ["周次", "日产", "已交货数", "产品销售单号", "创建日期"]
+ALWAYS_VISIBLE_FIELDS = ["钣金型号"]
 
 
 @dataclass
@@ -31,6 +32,7 @@ def format_main_sheet(sheet: Worksheet, logger: ProcessingLogger) -> FormatMainS
     inserted_type = ensure_type_column_after_remark(sheet, logger)
     apply_main_sheet_styles(sheet, logger)
     hidden_fields = hide_unnecessary_columns(sheet, logger)
+    ensure_visible_columns(sheet, logger)
     logger.info(
         f"主表格式处理完成：类型列{'已新增' if inserted_type else '已存在'}，隐藏列 {len(hidden_fields)} 个。"
     )
@@ -95,6 +97,20 @@ def hide_unnecessary_columns(sheet: Worksheet, logger: ProcessingLogger) -> list
         hidden.append(field)
     logger.info("已隐藏不必要列：" + "、".join(hidden))
     return hidden
+
+
+def ensure_visible_columns(sheet: Worksheet, logger: ProcessingLogger) -> None:
+    headers = _header_map(sheet)
+    visible: list[str] = []
+    for field in ALWAYS_VISIBLE_FIELDS:
+        col_index = headers.get(field)
+        if not col_index:
+            logger.warning(f"未找到需显示字段：{field}")
+            continue
+        sheet.column_dimensions[get_column_letter(col_index)].hidden = False
+        visible.append(field)
+    if visible:
+        logger.info("已确认关键列可见：" + "、".join(visible))
 
 
 def _header_map(sheet: Worksheet) -> dict[str, int]:

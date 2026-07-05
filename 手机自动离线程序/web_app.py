@@ -77,7 +77,7 @@ def main() -> None:
     st.caption("当前流程：" + " -> ".join(stages))
 
     uploaded_file = st.file_uploader(
-        "上传已经包含“类型”列的 Excel 当前结果文件",
+        "上传基础数据已补齐、可进入完整分解的 Excel 当前结果文件",
         type=["xlsx", "xlsm", "xls"],
         accept_multiple_files=False,
     )
