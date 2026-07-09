@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-import openpyxl
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
@@ -37,13 +37,12 @@ from monthly_automation import (
 CONFIG_PATH = LAUNCHER_DIR / "monthly_flow.json"
 LOG_DIR = DEFAULT_LOG_DIR
 STATE_PATH = LAUNCHER_DIR / "wizard_state.json"
-COEFFICIENT_PENDING_SHEETS = ["系数仍缺失", "系数补充"]
-SHEET_METAL_PENDING_SHEETS = ["钣金型号补充"]
-MATERIAL_DESCRIPTION_PENDING_SHEETS = ["物料描述仍缺失", "物料描述补充"]
+INSPECT_SCRIPT = PROJECT_DIR / "skills" / "dingbian" / "scripts" / "inspect_workbook.py"
 
 
 def choose_excel_file(title: str, initial_dir: Path, *, include_text: bool = False) -> Path | None:
-    filetypes = [("Excel 文件", "*.xlsx *.xlsm *.xls")]
+    excel_pattern = "*.xlsx *.xlsm *.xls" if include_text else "*.xlsx *.xlsm"
+    filetypes = [("Excel 文件", excel_pattern)]
     if include_text:
         filetypes.append(("查询表文本导出", "*.txt *.csv *.tsv *.xls"))
     filetypes.append(("所有文件", "*.*"))
@@ -130,40 +129,88 @@ def get_state_path(state: dict[str, Any], key: str) -> Path:
     return Path(value)
 
 
-def sheet_has_data_rows(workbook_path: Path, sheet_names: list[str]) -> bool:
-    workbook = openpyxl.load_workbook(workbook_path, read_only=True, data_only=True)
+def inspect_workbook_status(workbook_path: Path, log_path: Path) -> dict[str, Any]:
+    if not INSPECT_SCRIPT.exists():
+        raise FileNotFoundError(f"工作簿检查脚本不存在：{INSPECT_SCRIPT}")
+
+    env = os.environ.copy()
+    env["PYTHONUTF8"] = "1"
+    process = subprocess.run(
+        [sys.executable, str(INSPECT_SCRIPT), str(workbook_path)],
+        cwd=str(PROJECT_DIR),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+    )
+    if process.stderr.strip():
+        write_log(log_path, f"检查器 stderr：{process.stderr.strip()}")
     try:
-        for sheet_name in sheet_names:
-            if sheet_name not in workbook.sheetnames:
-                continue
-            sheet = workbook[sheet_name]
-            if sheet.max_row >= 2:
-                return True
-        return False
-    finally:
-        workbook.close()
+        status = json.loads(process.stdout)
+    except json.JSONDecodeError as exc:
+        write_log(log_path, f"检查器输出无法解析：{process.stdout.strip()}")
+        raise ValueError("工作簿检查器输出无法解析。") from exc
+
+    warnings = status.get("warnings") or []
+    for warning in warnings:
+        write_log(log_path, f"检查器警告：{warning}")
+    write_log(
+        log_path,
+        "检查器状态："
+        f"next_action={status.get('next_action')}；"
+        f"系数待补={status.get('coefficient_pending')}；"
+        f"钣金待补={status.get('sheet_metal_pending')}；"
+        f"物料描述待补={status.get('material_description_pending')}；"
+        f"未分类={status.get('unclassified_rows')}",
+    )
+
+    if not status.get("ok"):
+        error = status.get("error") or "工作簿检查未通过。"
+        target_sheets = status.get("target_sheets")
+        if target_sheets:
+            error = f"{error} 候选主表：{target_sheets}"
+        raise ValueError(error)
+    return status
 
 
-def has_coefficient_pending(workbook_path: Path) -> bool:
-    return sheet_has_data_rows(workbook_path, COEFFICIENT_PENDING_SHEETS)
-
-
-def has_sheet_metal_pending(workbook_path: Path) -> bool:
-    return sheet_has_data_rows(workbook_path, SHEET_METAL_PENDING_SHEETS)
-
-
-def has_material_description_pending(workbook_path: Path) -> bool:
-    return sheet_has_data_rows(workbook_path, MATERIAL_DESCRIPTION_PENDING_SHEETS)
-
-
-def next_foundation_step(workbook_path: Path) -> str:
-    if has_coefficient_pending(workbook_path):
+def next_foundation_step_from_status(status: dict[str, Any]) -> str:
+    if int(status.get("coefficient_pending") or 0) > 0:
         return "choose_coefficient_lookup"
-    if has_sheet_metal_pending(workbook_path):
+    if int(status.get("sheet_metal_pending") or 0) > 0:
         return "choose_sheet_metal_lookup"
-    if has_material_description_pending(workbook_path):
+    if int(status.get("material_description_pending") or 0) > 0:
         return "choose_material_description_lookup"
     return "final_stages"
+
+
+def next_foundation_step(workbook_path: Path, log_path: Path) -> str:
+    return next_foundation_step_from_status(inspect_workbook_status(workbook_path, log_path))
+
+
+def has_pending(workbook_path: Path, log_path: Path, key: str) -> bool:
+    status = inspect_workbook_status(workbook_path, log_path)
+    return int(status.get(key) or 0) > 0
+
+
+def select_downstream_stages(stages: list[str], status: dict[str, Any]) -> list[str]:
+    next_action = status.get("next_action")
+    if next_action == "prepare_standard_units":
+        first_stage = "prepare-standard-units"
+    elif next_action == "run_standard_format_and_decomposition":
+        first_stage = "format-main-sheet"
+    elif next_action == "run_decompose_extra_summary":
+        first_stage = "decompose-extra-summary"
+    elif next_action == "run_classify":
+        first_stage = "classify"
+    elif next_action in {"review_unclassified_data", "complete"}:
+        return []
+    else:
+        first_stage = "prepare-standard-units"
+
+    if first_stage not in stages:
+        raise ValueError(f"monthly_flow.json 缺少必要阶段：{first_stage}")
+    return stages[stages.index(first_stage) :]
 
 
 def open_output_dir(output_dir: Path, log_path: Path) -> None:
@@ -251,7 +298,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
             "prepare_material_description",
         }:
             current_file = run_stage(current_file, output_dir, "prepare-foundation-data", log_path)
-            step = next_foundation_step(current_file)
+            step = next_foundation_step(current_file, log_path)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
@@ -270,7 +317,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                 log_path,
                 coefficient_lookup=lookup,
             )
-            if has_coefficient_pending(current_file):
+            if has_pending(current_file, log_path, "coefficient_pending"):
                 return pause_for_manual(
                     state=make_state("wait_manual_coefficients", current_file, log_path, output_dir),
                     workbook_path=current_file,
@@ -278,13 +325,13 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="系数补充 / 系数仍缺失",
                 )
-            step = next_foundation_step(current_file)
+            step = next_foundation_step(current_file, log_path)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
         if step == "wait_manual_coefficients":
             current_file = run_stage(current_file, output_dir, "apply-manual-coefficients", log_path)
-            if has_coefficient_pending(current_file):
+            if has_pending(current_file, log_path, "coefficient_pending"):
                 return pause_for_manual(
                     state=make_state("wait_manual_coefficients", current_file, log_path, output_dir),
                     workbook_path=current_file,
@@ -292,7 +339,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="系数补充 / 系数仍缺失",
                 )
-            step = next_foundation_step(current_file)
+            step = next_foundation_step(current_file, log_path)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
@@ -319,7 +366,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                 log_path,
                 sheet_metal_lookup=lookup,
             )
-            if has_sheet_metal_pending(current_file):
+            if has_pending(current_file, log_path, "sheet_metal_pending"):
                 use_bom = messagebox.askyesno(
                     "钣金型号仍有缺失",
                     "钣金型号查询表仍有覆盖不到的行。\n\n是否选择 BOM 表，先把箱体组件候选写入“钣金型号补充”供你确认？",
@@ -335,7 +382,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="钣金型号补充",
                 )
-            step = next_foundation_step(current_file)
+            step = next_foundation_step(current_file, log_path)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
@@ -364,7 +411,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
 
         if step == "wait_manual_sheet_metal":
             current_file = run_stage(current_file, output_dir, "apply-manual-sheet-metal", log_path)
-            if has_sheet_metal_pending(current_file):
+            if has_pending(current_file, log_path, "sheet_metal_pending"):
                 return pause_for_manual(
                     state=make_state("wait_manual_sheet_metal", current_file, log_path, output_dir),
                     workbook_path=current_file,
@@ -372,7 +419,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="钣金型号补充",
                 )
-            step = next_foundation_step(current_file)
+            step = next_foundation_step(current_file, log_path)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
@@ -391,7 +438,7 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                 log_path,
                 material_description_lookup=lookup,
             )
-            if has_material_description_pending(current_file):
+            if has_pending(current_file, log_path, "material_description_pending"):
                 return pause_for_manual(
                     state=make_state("wait_manual_material_description", current_file, log_path, output_dir),
                     workbook_path=current_file,
@@ -399,13 +446,13 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="物料描述补充 / 物料描述仍缺失",
                 )
-            step = next_foundation_step(current_file)
+            step = next_foundation_step(current_file, log_path)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
         if step == "wait_manual_material_description":
             current_file = run_stage(current_file, output_dir, "apply-manual-material-description", log_path)
-            if has_material_description_pending(current_file):
+            if has_pending(current_file, log_path, "material_description_pending"):
                 return pause_for_manual(
                     state=make_state("wait_manual_material_description", current_file, log_path, output_dir),
                     workbook_path=current_file,
@@ -413,12 +460,26 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
                     log_path=log_path,
                     sheets="物料描述补充 / 物料描述仍缺失",
                 )
-            step = next_foundation_step(current_file)
+            step = next_foundation_step(current_file, log_path)
             state = make_state(step, current_file, log_path, output_dir)
             continue
 
         if step == "final_stages":
-            current_file = run_monthly_flow(current_file, stages, output_dir, log_path)
+            status = inspect_workbook_status(current_file, log_path)
+            if not status.get("foundation_ready"):
+                step = next_foundation_step_from_status(status)
+                state = make_state(step, current_file, log_path, output_dir)
+                continue
+
+            selected_stages = select_downstream_stages(stages, status)
+            if selected_stages:
+                write_log(log_path, f"按检查器建议执行下游流程：{' -> '.join(selected_stages)}")
+                current_file = run_monthly_flow(current_file, selected_stages, output_dir, log_path)
+                final_status = inspect_workbook_status(current_file, log_path)
+                if final_status.get("next_action") == "review_unclassified_data":
+                    write_log(log_path, "最终分类已完成，但仍存在未分类数据，请在结果文件中查看“未分类数据”。")
+            else:
+                write_log(log_path, "检查器判断当前文件无需继续执行下游阶段。")
             clear_state()
             return current_file
 
@@ -451,6 +512,7 @@ def main() -> int:
                 root.destroy()
                 return 0
             validate_input_file(input_path)
+            inspect_workbook_status(input_path, log_path)
             state = make_state("prepare_foundation_data", input_path, log_path, output_dir)
 
         output_path = run_wizard(state)
@@ -475,10 +537,15 @@ def main() -> int:
 
     output_dir = output_path.parent
     write_log(log_path, f"月度离线向导完成：{output_path}")
+    final_status = inspect_workbook_status(output_path, log_path)
+    unclassified_rows = int(final_status.get("unclassified_rows") or 0)
+    extra_note = ""
+    if unclassified_rows > 0:
+        extra_note = f"\n\n注意：未分类数据还有 {unclassified_rows} 行，请查看结果文件中的“未分类数据”。"
     open_output_dir(output_dir, log_path)
     messagebox.showinfo(
         "月度处理完成",
-        f"全部流程已完成。\n\n输出文件：\n{output_path}\n\n日志文件：\n{log_path}",
+        f"流程已执行完成。\n\n输出文件：\n{output_path}\n\n日志文件：\n{log_path}{extra_note}",
     )
     root.destroy()
     return 0

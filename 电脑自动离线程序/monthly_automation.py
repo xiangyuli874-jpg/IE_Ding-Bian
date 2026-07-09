@@ -41,7 +41,7 @@ DEFAULT_STAGES = [
     "decompose-extra-summary",
     "classify",
 ]
-SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm", ".xls"}
+SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm"}
 
 
 def load_monthly_flow(
@@ -117,7 +117,7 @@ def validate_input_file(input_path: Path) -> None:
         raise ValueError("不能处理 Excel 临时锁文件（文件名以 ~$ 开头）。请关闭 Excel 后选择原始文件。")
     if input_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
         allowed = "、".join(sorted(SUPPORTED_EXTENSIONS))
-        raise ValueError(f"请选择 Excel 文件（支持：{allowed}）。")
+        raise ValueError(f"请选择月度排产主 Excel 文件（支持：{allowed}）。")
 
 
 def run_stage(
