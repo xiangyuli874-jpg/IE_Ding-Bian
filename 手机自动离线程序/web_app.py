@@ -78,7 +78,7 @@ def main() -> None:
 
     uploaded_file = st.file_uploader(
         "上传基础数据已补齐、可进入完整分解的 Excel 当前结果文件",
-        type=["xlsx", "xlsm", "xls"],
+        type=["xlsx", "xlsm"],
         accept_multiple_files=False,
     )
 
