@@ -20,7 +20,8 @@ PENDING_GROUPS = {
     "sheet_metal_pending": ("钣金型号补充",),
     "material_description_pending": ("物料描述仍缺失", "物料描述补充"),
 }
-DECOMPOSITION_SHEETS = ("排单分解表明细", "各线体分类明细表")
+DECOMPOSITION_SHEETS = ("排单分解表明细", "线体分类明细表")
+LEGACY_LINE_CLASSIFICATION_SHEET = "各线体分类明细表"
 CLASSIFICATION_SHEETS = ("分类结果汇总表", "未分类数据")
 FINAL_SHEETS = (*DECOMPOSITION_SHEETS, *CLASSIFICATION_SHEETS)
 TYPE_COLUMN = "类型"
@@ -128,6 +129,9 @@ def main() -> int:
         result["decomposition_sheets"] = {
             name: name in workbook.sheetnames for name in DECOMPOSITION_SHEETS
         }
+        result["legacy_decomposition_sheets"] = {
+            LEGACY_LINE_CLASSIFICATION_SHEET: LEGACY_LINE_CLASSIFICATION_SHEET in workbook.sheetnames
+        }
         result["classification_sheets"] = {
             name: name in workbook.sheetnames for name in CLASSIFICATION_SHEETS
         }
@@ -178,6 +182,8 @@ def main() -> int:
             result["next_action"] = "complete"
         if "分类结果" in path.stem and not result["classification_ready"]:
             result["warnings"].append("文件名包含“分类结果”，但工作簿缺少“分类结果汇总表/未分类数据”；不要仅凭文件名判断定编完成。")
+        if result["legacy_decomposition_sheets"][LEGACY_LINE_CLASSIFICATION_SHEET] and not result["decomposition_sheets"]["线体分类明细表"]:
+            result["warnings"].append("当前文件仅包含旧“各线体分类明细表”；请运行 decompose-extra-summary 刷新为“线体分类明细表”。")
         result["is_complete"] = result["next_action"] == "complete"
 
         print(json.dumps(result, ensure_ascii=False, indent=2))

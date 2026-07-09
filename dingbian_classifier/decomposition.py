@@ -18,7 +18,8 @@ from .exceptions import MissingRequiredFieldsError
 from .logger import ProcessingLogger
 
 DETAIL_SHEET_NAME = "排单分解表明细"
-LINE_CLASSIFICATION_SHEET_NAME = "各线体分类明细表"
+LINE_CLASSIFICATION_SHEET_NAME = "线体分类明细表"
+LEGACY_LINE_CLASSIFICATION_SHEET_NAME = "各线体分类明细表"
 WAVE_LINES = {"B线", "B线夜", "C线", "C线夜"}
 ROLLING_LINE_ORDER = ["A线", "A线夜", "D线", "D线夜", "E线", "H线"]
 WAVE_LINE_ORDER = ["B线", "B线夜", "C线", "C线夜"]
@@ -77,7 +78,7 @@ EXPORT_MAIN_FILL = "B7DEE8"
 EXPORT_TYPE_FILL = "DDEBF7"
 EXPORT_TYPE = "外销"
 WAVE_LG_TYPE = "LG"
-WAVE_PLASTIC_DOMESTIC_TYPE = "塑料内销"
+WAVE_PLASTIC_DOMESTIC_TYPE = "塑料机"
 WAVE_P7P9_TYPE = "P7/P9"
 WAVE_P7P9_LABEL = "P7P9"
 WAVE_CKD_MAIN_FILL = "C6E0B4"
@@ -1279,6 +1280,7 @@ def write_line_classification_detail_sheet(
     sheet = workbook[main_sheet_name]
     values_sheet = values_workbook[main_sheet_name]
     remove_sheet_if_exists(workbook, LINE_CLASSIFICATION_SHEET_NAME)
+    remove_sheet_if_exists(workbook, LEGACY_LINE_CLASSIFICATION_SHEET_NAME)
     detail_sheet = workbook.create_sheet(LINE_CLASSIFICATION_SHEET_NAME)
 
     rolling_line_order = _actual_line_order(sheet, headers, ROLLING_LINE_ORDER, rolling=True)
@@ -1293,7 +1295,7 @@ def write_line_classification_detail_sheet(
     row_index = _write_line_detail_section(
         detail_sheet,
         row_index,
-        "滚筒各线体分类明细-订单数",
+        "滚筒线体分类明细-订单数",
         rolling_line_order,
         _build_line_detail_rows(ROLLING_LABELS, rolling_line_order, rolling_line_types, "rolling", "order"),
         rolling_line_totals,
@@ -1302,7 +1304,7 @@ def write_line_classification_detail_sheet(
     _write_line_detail_section(
         detail_sheet,
         row_index + 2,
-        "滚筒各线体分类明细-标台数",
+        "滚筒线体分类明细-标台数",
         rolling_line_order,
         _build_line_detail_rows(ROLLING_LABELS, rolling_line_order, rolling_line_types, "rolling", "standard"),
         rolling_line_totals,
@@ -1312,7 +1314,7 @@ def write_line_classification_detail_sheet(
     row_index = _write_line_detail_section(
         detail_sheet,
         row_index,
-        "波轮各线体分类明细-订单数",
+        "波轮线体分类明细-订单数",
         wave_line_order,
         _build_line_detail_rows(WAVE_LABELS, wave_line_order, wave_line_types, "wave", "order"),
         wave_line_totals,
@@ -1321,7 +1323,7 @@ def write_line_classification_detail_sheet(
     _write_line_detail_section(
         detail_sheet,
         row_index + 2,
-        "波轮各线体分类明细-标台数",
+        "波轮线体分类明细-标台数",
         wave_line_order,
         _build_line_detail_rows(WAVE_LABELS, wave_line_order, wave_line_types, "wave", "standard"),
         wave_line_totals,
@@ -1845,7 +1847,7 @@ def _style_line_classification_detail_sheet(sheet: Worksheet) -> None:
 
     for row_index in range(1, sheet.max_row + 1):
         first_value = sheet.cell(row_index, 1).value
-        if str(first_value or "").startswith(("滚筒各线体分类明细", "波轮各线体分类明细")):
+        if str(first_value or "").startswith(("滚筒线体分类明细", "波轮线体分类明细")):
             for cell in sheet[row_index]:
                 cell.fill = blue_fill
                 cell.font = Font(color="FFFFFF", bold=True)
@@ -1859,7 +1861,7 @@ def _style_line_classification_detail_sheet(sheet: Worksheet) -> None:
                 cell.fill = total_fill
                 cell.font = Font(color="000000", bold=True)
 
-    sheet.freeze_panes = "B3"
+    sheet.freeze_panes = "B4"
     sheet.column_dimensions["A"].width = 34
     for col_index in range(2, max_col + 1):
         sheet.column_dimensions[get_column_letter(col_index)].width = 12

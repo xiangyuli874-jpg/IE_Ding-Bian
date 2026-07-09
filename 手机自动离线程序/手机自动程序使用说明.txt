@@ -15,7 +15,7 @@ monthly_flow.json       当前默认处理流程配置
 monthly_flow.json 当前配置为完整下游定编流程：
 prepare-standard-units -> format-main-sheet -> decompose-skd -> decompose-rolling-remarks -> decompose-t7p7t5p5-dreame -> decompose-t9p9 -> decompose-t9p9-dryer -> decompose-t10p10 -> decompose-c6-heat-pump-dryer -> decompose-composite-penguin-c6 -> decompose-rolling-final -> decompose-wave-basic -> decompose-wave-final -> decompose-extra-summary -> classify
 
-这表示网页会先刷新标台数和主表格式，再执行滚筒、波轮完整分解，最后生成额外订单信息汇总、各线体分类明细表和最终分类结果。
+这表示网页会先刷新标台数和主表格式，再执行滚筒、波轮完整分解，最后生成额外订单信息汇总、线体分类明细表和最终分类结果。
 
 四、使用方式
 1. 先按照“云端网页部署说明.txt”部署到云端平台。
