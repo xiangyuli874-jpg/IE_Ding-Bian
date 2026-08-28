@@ -16,6 +16,9 @@ def ps_quote(path: Path) -> str:
 
 def resave_with_excel_if_available(path: Path, logger: ProcessingLogger) -> None:
     """Ask desktop Excel to resave the workbook so Excel-specific records stay valid."""
+    if os.environ.get("DINGBIAN_SKIP_EXCEL_RESAVE") == "1":
+        logger.info("已跳过中间阶段的 Excel 兼容性另存。")
+        return
     if platform.system() != "Windows":
         return
 
@@ -28,6 +31,13 @@ $excel.Visible = $false
 $excel.DisplayAlerts = $false
 try {{
   $wb = $excel.Workbooks.Open($src, 0, $false, 5, "", "", $true, 1, "", $false, $false, 0, $false, $true, 1)
+  $mainSheet = $wb.Worksheets.Item(1)
+  $mainSheet.Activate()
+  $excel.ActiveWindow.FreezePanes = $false
+  $excel.ActiveWindow.SplitColumn = 0
+  $excel.ActiveWindow.SplitRow = 1
+  $mainSheet.Range("A2").Select()
+  $excel.ActiveWindow.FreezePanes = $true
   $wb.SaveAs($dst, 51)
   $wb.Close($false)
 }} finally {{

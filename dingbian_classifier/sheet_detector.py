@@ -10,8 +10,18 @@ from .logger import ProcessingLogger
 TARGET_SHEET_PATTERN = re.compile(r"^W\d+\s*-\s*W\d+.*周排产明细")
 
 
-def find_target_sheet(sheet_names: list[str], logger: ProcessingLogger) -> str:
+def find_target_sheet(
+    sheet_names: list[str],
+    logger: ProcessingLogger,
+    target_sheet_name: str | None = None,
+) -> str:
     """Return the first sheet name matching the production detail naming rule."""
+    if target_sheet_name:
+        if target_sheet_name not in sheet_names:
+            raise TargetSheetNotFoundError(f"指定的主工作表不存在：{target_sheet_name}")
+        logger.info(f"使用指定目标工作表：{target_sheet_name}")
+        return target_sheet_name
+
     matches = [name for name in sheet_names if TARGET_SHEET_PATTERN.search(name)]
     if not matches:
         raise TargetSheetNotFoundError(
@@ -27,4 +37,3 @@ def find_target_sheet(sheet_names: list[str], logger: ProcessingLogger) -> str:
         logger.info(f"找到目标工作表：{matches[0]}")
 
     return matches[0]
-
