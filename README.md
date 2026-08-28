@@ -11,9 +11,11 @@
 - 支持从钣金型号查询表或 BOM 表补齐钣金型号；BOM 表可先写入候选值等待人工确认，也可按需直接回填。
 - 支持单独新增/刷新“标准单位/标准台数”相关列，方便在补齐基础数据后再计算标台数。
 - 支持 SKD、滚筒备注、T7/P7/T5/P5/追觅、T9/P9、T10/P10、C6、复式、企鹅、滚筒收尾、波轮收尾和额外订单信息汇总等排单分解阶段。
-- 根据工作簿内的分类规则配置生成分类结果、未分类数据和分类汇总表。
+- 根据主表已写入的 `类型` 生成分类结果汇总表和未分类数据，避免最终汇总再次套用旧规则造成已分解类型被覆盖。
 - 可生成“排单分解表明细”“线体分类明细表”，汇总线体排单、标台数、转产时间和不良宽放工时，并对额外订单信息命中的钣金型号列上色。
 - 额外订单信息汇总会追加产能规划来源指标：外协烘道数量、滚筒喷粉数量、波轮喷粉数量、PCM 板中需喷涂前门板的箱体数量。
+- 支持对钣金型号为 `#N/A`、`N/A`、`0`、`0.0`、`0.00` 的行按物料编码定向回填物料描述，不覆盖钣金型号正常的订单描述。
+- 支持全线体物料编码分类复核：`U605...` 识别干衣机、`U60101...` 识别单洗、`U60102...` 识别烘干；确定性错分自动纠正，无法唯一判断的冲突写入“物料编码分类复核”。
 - 在处理结果中写入处理日志，并保留有限数量的历史备份。
 - 清理旧结果时会跳过 Excel 打开的临时锁文件，避免误处理 `~$` 开头的临时文件。
 - 提供 `电脑自动离线程序`，月底可双击启动分步向导，先用只读检查器确认主表和当前阶段，再按“自动查询优先、必要时手工补充”的方式跑完整月度流程。
@@ -33,7 +35,7 @@
 └── README.md                 # 项目说明
 ```
 
-`outputs/`、`inputs/` 中的 Excel 文件、各自动程序的 `logs/`、`__pycache__/`、Excel 业务数据、生成结果和向导续跑状态已通过 `.gitignore` 排除，不会默认提交到仓库。
+`outputs/`、`inputs/` 中的 Excel 文件、各自动程序的 `logs/`、`tmp/`、`work/`、`__pycache__/`、Excel 业务数据、生成结果和向导续跑状态已通过 `.gitignore` 排除，不会默认提交到仓库。
 
 ## 环境准备
 
@@ -52,6 +54,8 @@ python -m pip install -r requirements.txt
 ```powershell
 python run_classifier.py --input "<周排产计划明细.xlsx>" --output-dir "outputs" --stage classify
 ```
+
+如果工作簿内存在多个候选主表，可以用 `--target-sheet` 明确指定要处理的 `W...周排产明细` 工作表。
 
 ## 常用处理阶段
 
@@ -83,6 +87,12 @@ python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs"
 
 ```powershell
 python run_classifier.py --input "<已手工补好系数的结果.xlsx>" --output-dir "outputs" --stage apply-manual-coefficients
+```
+
+保留订单数空白行、只准备三类基础异常：
+
+```powershell
+python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage prepare-foundation-data-preserve-order-blanks
 ```
 
 生成“钣金型号补充”：
@@ -127,6 +137,12 @@ python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outpu
 python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage fill-material-description --material-description-lookup "<物料描述查询表.xlsx或txt/csv/tsv/xls导出>"
 ```
 
+只对钣金型号异常的订单按物料编码补物料描述：
+
+```powershell
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage fill-material-description-for-invalid-sheet-metal --material-description-lookup "<物料描述查询表.xlsx或txt/csv/tsv/xls导出>"
+```
+
 将手工维护在结果文件中的物料描述回填到主表：
 
 ```powershell
@@ -149,6 +165,12 @@ python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outpu
 
 ```powershell
 python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage refresh-coefficient-formulas
+```
+
+将仍缺系数、且需暂不参与定编分解的订单标记为跳过：
+
+```powershell
+python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outputs" --stage skip-unresolved-coefficients
 ```
 
 单独新增或刷新“标准单位/标准台数”相关列：
@@ -175,6 +197,12 @@ python run_classifier.py --input "<当前最新结果.xlsx>" --output-dir "outpu
 python run_classifier.py --input "<已完成排单分解的当前结果.xlsx>" --output-dir "outputs" --stage decompose-extra-summary
 ```
 
+按物料编码复核单洗、烘干和干衣机大方向：
+
+```powershell
+python run_classifier.py --input "<已完成排单分解的当前结果.xlsx>" --output-dir "outputs" --stage audit-material-code-types
+```
+
 ## 推荐排单分解顺序
 
 排单分解阶段会在主表中标记“类型”并刷新“排单分解表明细”。建议按下面顺序逐步处理，并将每一步输出作为下一步输入：
@@ -191,10 +219,11 @@ python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs"
 python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-rolling-final
 python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-wave-basic
 python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-wave-final
+python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage audit-material-code-types
 python run_classifier.py --input "<上一步输出.xlsx>" --output-dir "outputs" --stage decompose-extra-summary
 ```
 
-`decompose-extra-summary` 依赖主表中的“类型”列，适合放在滚筒/波轮分解完成后执行。
+`decompose-extra-summary` 依赖主表中的“类型”列，适合放在滚筒/波轮分解和物料编码分类复核完成后执行。
 
 ## 额外订单信息汇总
 
@@ -221,6 +250,20 @@ A 线内销和 D 线外销公斤段细分以“钣金型号”为主，“物料
 质量日报用于填写右侧“订单不良宽放工时预算表”时，`.xls` 或已知会触发 Excel 安全拦截的日报优先用非交互解析方式读取 `过程合格率&top问题` 工作表，再按 `100% - 合格率` 写入不良率，避免反复触发受保护视图或安全弹窗。
 
 最终结果默认保留主表和结果表公式，只做必要的 Excel 重算和另存；不为了消除“发现内容有问题”弹窗而批量冻结为固定值。若另存固定值兼容版，需要在文件名和交付说明中明确标注。最终工作簿还需检查视图状态，尤其“线体分类明细表”冻结窗格应在表头附近，避免停在 `B89` 等深行位置导致无法正常滚动。
+
+## 物料编码分类复核
+
+`audit-material-code-types` 用于防止单洗、烘干和干衣机类型混分。复核规则以物料编码中 `U` 后的产品族为准：
+
+- `U605...`：干衣机。
+- `U60101...`：单洗。
+- `U60102...`：烘干。
+
+该阶段只自动修正规则能唯一确认的冲突，例如 `U605...` 且物料描述、备注或钣金型号能确认 T10/DWD10 干衣机时写为 `T10/P10干衣机`，`U60102...` 但仍停在普通外销大类时写为 `普通烘干`。不能唯一判断的订单会写入“物料编码分类复核”，保留原 `类型` 等待人工确认。
+
+钣金型号异常但物料描述不可靠时，先运行 `fill-material-description-for-invalid-sheet-metal`，只针对钣金型号为 `#N/A`、`N/A`、`0`、`0.0`、`0.00` 的行按物料编码回填描述；钣金型号正常的行不会被覆盖。随后重新执行受影响的分解阶段，再运行 `audit-material-code-types`、`decompose-extra-summary` 和 `classify`。
+
+最终 `classify` 会直接按主表当前 `类型` 汇总，生成“分类结果汇总表”和“未分类数据”；`类型` 为空的行进入“未分类数据”，不会再通过分类规则配置二次猜测。
 
 ## 电脑自动离线程序
 
@@ -321,10 +364,10 @@ streamlit run 手机自动离线程序/web_app.py
 技能会：
 
 1. 使用只读脚本检查主工作表、待补数据和最终结果表状态。
-2. 优先并行准备系数、钣金型号、物料描述三类基础数据异常，再按标准台数、主表格式、完整排单分解、额外订单汇总、A/D 线公斤段回写校验和最终分类的顺序执行。
+2. 优先并行准备系数、钣金型号、物料描述三类基础数据异常，再按标准台数、主表格式、完整排单分解、全线体物料编码分类复核、额外订单汇总、A/D 线公斤段回写校验和最终分类的顺序执行。
 3. 缺少查询表或仍需人工补充时暂停，并明确返回当前结果文件和下一步操作。
 4. 每次使用上一阶段的新输出继续处理，不修改原始工作簿。
-5. 只有基础数据无待补、排单分解表和线体分类明细表已生成、额外订单汇总包含 4 个产能规划指标、A/D 线公斤段已回写主表并完成视图检查，且 `classify` 已生成“分类结果汇总表”和“未分类数据”后，才视为定编完成。
+5. 只有基础数据无待补、排单分解表和线体分类明细表已生成、物料编码分类复核已完成、额外订单汇总包含 4 个产能规划指标、A/D 线公斤段已回写主表并完成视图检查，且 `classify` 已生成“分类结果汇总表”和“未分类数据”后，才视为定编完成。
 
 只读检查脚本也可以单独运行：
 
@@ -338,12 +381,14 @@ python skills/dingbian/scripts/inspect_workbook.py "<工作簿.xlsx>"
 
 - `prepare-coefficients`：生成系数补充表。
 - `prepare-foundation-data`：一次性生成系数、钣金型号、物料描述补充表，并完成订单行清理和公式刷新。
+- `prepare-foundation-data-preserve-order-blanks`：一次性生成三类基础补充表，但保留订单数空白行。
 - `cleanup-order-rows`：删除订单数空白、线体空白和指定物料编码订单行，并刷新系数/钣金型号公式。
 - `cleanup-missing-material-description-rows`：删除物料描述缺失的未上单订单行，并刷新相关公式。
 - `cleanup-coefficient-supplement-rows`：删除“系数补充”对应的订单行，并刷新相关公式。
 - `refresh-coefficient-formulas`：刷新系数 VLOOKUP 当前行引用。
 - `fill-coefficients`：从系数查询表回填。
 - `apply-manual-coefficients`：从人工填写列回填系数。
+- `skip-unresolved-coefficients`：标记系数仍缺失但暂不参与定编分解的订单行。
 - `prepare-sheet-metal`：生成钣金型号补充表。
 - `fill-sheet-metal`：从钣金型号查询表回填。
 - `suggest-sheet-metal-bom`：按 BOM 号把箱体组件候选写入“钣金型号补充”，等待人工确认。
@@ -351,6 +396,7 @@ python skills/dingbian/scripts/inspect_workbook.py "<工作簿.xlsx>"
 - `apply-manual-sheet-metal`：从人工填写列回填钣金型号。
 - `prepare-material-description`：生成物料描述补充表。
 - `fill-material-description`：从物料描述查询表按物料编码回填。
+- `fill-material-description-for-invalid-sheet-metal`：只对钣金型号异常行按物料编码回填物料描述。
 - `apply-manual-material-description`：从人工填写列回填物料描述。
 - `prepare-standard-units`：新增或刷新标准单位/标准台数相关列。
 - `reorder-sheets`：调整辅助工作表顺序。
@@ -367,7 +413,8 @@ python skills/dingbian/scripts/inspect_workbook.py "<工作簿.xlsx>"
 - `decompose-wave-basic`：执行波轮基础规则，覆盖 CKD、LG、塑料机、P7/P9 和 SKD 等分类。
 - `decompose-wave-final`：执行波轮收尾规则，补齐内销铁皮变频、外销普通变频、内销铁皮和外销铁皮等分类，并统计剩余未分类差异。
 - `decompose-extra-summary`：生成额外订单信息汇总和线体分类明细表，并对命中的钣金型号列上色。
-- `classify`：执行分类并生成结果表。
+- `audit-material-code-types`：按物料编码产品族复核并纠正确定性分类错误，剩余冲突写入“物料编码分类复核”。
+- `classify`：按主表 `类型` 汇总并生成结果表。
 
 ## 文件保留与回退
 

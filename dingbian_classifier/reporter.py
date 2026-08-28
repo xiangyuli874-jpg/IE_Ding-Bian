@@ -57,6 +57,64 @@ def build_summary_rows(result: ClassificationResult) -> list[list[Any]]:
     return rows
 
 
+def write_type_summary_results(
+    workbook: Workbook,
+    headers: list[str],
+    rows: list[dict[str, Any]],
+    logger: ProcessingLogger,
+) -> None:
+    """Write the final summary directly from the main-sheet 类型 values.
+
+    This deliberately does not invoke keyword rules or create per-keyword
+    category sheets. Rows with an empty 类型 stay auditable in 未分类数据.
+    """
+    for sheet_name in RESULT_SHEETS:
+        remove_sheet_if_exists(workbook, sheet_name)
+
+    totals: dict[str, list[float | int]] = {}
+    unmatched: list[dict[str, Any]] = []
+    for row in rows:
+        type_name = str(row.get("类型") or "").strip()
+        if not type_name:
+            unmatched.append(row)
+            continue
+        bucket = totals.setdefault(type_name, [0.0, 0.0, 0])
+        bucket[0] += to_number(row.get("订单数"))
+        bucket[1] += to_number(row.get("标台数"))
+        bucket[2] += 1
+
+    summary_sheet = workbook.create_sheet("分类结果汇总表")
+    summary_sheet.append(["类型", "订单数合计", "标台数合计", "行数"])
+    for type_name in sorted(totals):
+        order_qty, standard_units, row_count = totals[type_name]
+        summary_sheet.append([type_name, order_qty, standard_units, row_count])
+    summary_sheet.freeze_panes = "A2"
+    summary_sheet.auto_filter.ref = summary_sheet.dimensions
+    style_header(summary_sheet)
+    for column in ("B", "C", "D"):
+        for cell in summary_sheet[column][1:]:
+            cell.number_format = "#,##0.##"
+
+    unmatched_sheet = workbook.create_sheet("未分类数据")
+    write_table(unmatched_sheet, headers, unmatched)
+    style_header(unmatched_sheet)
+    unmatched_sheet.freeze_panes = "A2"
+    unmatched_sheet.auto_filter.ref = unmatched_sheet.dimensions
+
+    log_sheet = workbook.create_sheet("处理日志")
+    write_log_rows(log_sheet, logger)
+
+    for sheet in (summary_sheet, unmatched_sheet, log_sheet):
+        for column_cells in sheet.columns:
+            max_len = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
+            sheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_len + 2, 10), 45)
+
+    logger.info(
+        f"已按主表‘类型’直接汇总：{len(totals)} 个类型；"
+        f"类型为空的未分类数据 {len(unmatched)} 行。"
+    )
+
+
 def write_results(
     workbook: Workbook,
     headers: list[str],

@@ -265,15 +265,20 @@ def prepare_coefficients(
     values_workbook: Workbook,
     target_sheet_name: str,
     logger: ProcessingLogger,
+    cleanup_rows: bool = True,
 ) -> CoefficientPrepareResult:
     formula_sheet = workbook[target_sheet_name]
-    cleanup_result = cleanup_order_rows(formula_sheet, logger)
+    cleanup_result = (
+        cleanup_order_rows(formula_sheet, logger)
+        if cleanup_rows
+        else OrderCleanupResult(0, 0, 0)
+    )
     refresh_coefficient_lookup_formulas(formula_sheet, logger)
 
     # The values workbook still reflects the pre-delete copy. Delete the same rows
     # there so row numbers stay aligned when detecting #N/A rows.
     values_sheet = values_workbook[target_sheet_name]
-    if (
+    if cleanup_rows and (
         cleanup_result.deleted_blank_order_rows
         or cleanup_result.deleted_blank_line_rows
         or cleanup_result.deleted_excluded_material_rows
@@ -360,16 +365,32 @@ def read_lookup_rows_from_text_export(lookup_path: Path) -> list[tuple[Any, Any]
     parsed_rows = list(csv.reader(text.splitlines(), delimiter="\t"))
     if not parsed_rows:
         raise ClassifierError("系数查询表为空。")
-    source_headers = _normalized_header_map(parsed_rows[0])
-    coefficient_header = find_coefficient_header(source_headers)
-    _require_text_columns(source_headers, ["物料编码", coefficient_header], "系数查询表")
+    header_row_index = None
+    source_headers: dict[str, int] | None = None
+    coefficient_header = None
+    for row_index, row in enumerate(parsed_rows):
+        candidate_headers = _normalized_header_map(row)
+        try:
+            candidate_coefficient_header = find_coefficient_header(candidate_headers)
+            _require_text_columns(candidate_headers, ["物料编码", candidate_coefficient_header], "系数查询表")
+        except MissingRequiredFieldsError:
+            continue
+        header_row_index = row_index
+        source_headers = candidate_headers
+        coefficient_header = candidate_coefficient_header
+        break
+
+    if header_row_index is None or source_headers is None or coefficient_header is None:
+        raise MissingRequiredFieldsError("系数查询表缺少关键字段：物料编码、系数 或 等级D")
 
     code_index = source_headers["物料编码"]
     coefficient_index = source_headers[coefficient_header]
     rows: list[tuple[Any, Any]] = []
-    for row in parsed_rows[1:]:
+    for row in parsed_rows[header_row_index + 1:]:
         code = row[code_index] if code_index < len(row) else None
         coefficient = row[coefficient_index] if coefficient_index < len(row) else None
+        if code is None or not str(code).strip():
+            continue
         rows.append((code, coefficient))
     return rows
 
@@ -436,10 +457,12 @@ def fill_coefficients(
 
 def apply_manual_coefficients(
     workbook: Workbook,
+    values_workbook: Workbook,
     target_sheet_name: str,
     logger: ProcessingLogger,
 ) -> ManualCoefficientApplyResult:
     source_sheet = find_manual_coefficient_sheet(workbook)
+    values_source_sheet = values_workbook[source_sheet.title] if source_sheet.title in values_workbook.sheetnames else None
     formula_sheet = workbook[target_sheet_name]
     source_headers = _header_map(source_sheet)
     main_headers = _header_map(formula_sheet)
@@ -448,6 +471,10 @@ def apply_manual_coefficients(
 
     row_no_col = source_headers["原始行号"]
     source_coefficient_col = source_headers["系数"]
+    values_source_coefficient_col = None
+    if values_source_sheet is not None:
+        values_source_headers = _header_map(values_source_sheet)
+        values_source_coefficient_col = values_source_headers.get("系数")
     source_code_col = source_headers.get("物料编码")
     main_coefficient_col = main_headers["系数"]
     main_code_col = main_headers["物料编码"]
@@ -461,7 +488,14 @@ def apply_manual_coefficients(
 
         for row_index in range(2, source_sheet.max_row + 1):
             code = _code_key(source_sheet.cell(row_index, source_code_col).value)
-            coefficient = source_sheet.cell(row_index, source_coefficient_col).value
+            coefficient = _manual_coefficient_value(
+                source_sheet.cell(row_index, source_coefficient_col).value,
+                (
+                    values_source_sheet.cell(row_index, values_source_coefficient_col).value
+                    if values_source_sheet is not None and values_source_coefficient_col is not None
+                    else None
+                ),
+            )
             if _is_manual_coefficient_value(coefficient):
                 if code:
                     coefficient_by_code[code] = coefficient
@@ -511,7 +545,14 @@ def apply_manual_coefficients(
 
     for row_index in range(2, source_sheet.max_row + 1):
         original_row = source_sheet.cell(row_index, row_no_col).value
-        coefficient = source_sheet.cell(row_index, source_coefficient_col).value
+        coefficient = _manual_coefficient_value(
+            source_sheet.cell(row_index, source_coefficient_col).value,
+            (
+                values_source_sheet.cell(row_index, values_source_coefficient_col).value
+                if values_source_sheet is not None and values_source_coefficient_col is not None
+                else None
+            ),
+        )
         if _is_blank(original_row):
             continue
         try:
@@ -550,6 +591,19 @@ def _is_manual_coefficient_value(value: Any) -> bool:
     if isinstance(value, str) and value.strip().startswith("="):
         return False
     return True
+
+
+def _manual_coefficient_value(formula_value: Any, cached_value: Any) -> Any:
+    """Return a confirmed coefficient from a supplement cell.
+
+    A supplement may contain a VLOOKUP formula while the paired data-only
+    workbook contains Excel's already-calculated numeric result.  Treat that
+    numeric cache as a usable value; formula errors and empty results remain
+    unresolved.
+    """
+    if isinstance(formula_value, str) and formula_value.strip().startswith("="):
+        return cached_value if _is_manual_coefficient_value(cached_value) else None
+    return formula_value
 
 
 def _is_missing_or_lookup_formula(value: Any) -> bool:

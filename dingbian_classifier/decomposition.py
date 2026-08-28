@@ -20,6 +20,7 @@ from .logger import ProcessingLogger
 DETAIL_SHEET_NAME = "排单分解表明细"
 LINE_CLASSIFICATION_SHEET_NAME = "线体分类明细表"
 LEGACY_LINE_CLASSIFICATION_SHEET_NAME = "各线体分类明细表"
+MATERIAL_CODE_AUDIT_SHEET_NAME = "物料编码分类复核"
 WAVE_LINES = {"B线", "B线夜", "C线", "C线夜"}
 ROLLING_LINE_ORDER = ["A线", "A线夜", "D线", "D线夜", "E线", "H线"]
 WAVE_LINE_ORDER = ["B线", "B线夜", "C线", "C线夜"]
@@ -68,6 +69,7 @@ C6_WASH_TYPE_FILL = "D9EAD3"
 C6_DRY_TYPE_FILL = "E2F0D9"
 C6_WASH_TYPE = "C6单洗"
 C6_DRY_TYPE = "C6烘干"
+HEAT_PUMP_WASH_DRYER_TYPE = "热泵洗烘一体机"
 ORDINARY_DRY_MAIN_FILL = "F4B183"
 ORDINARY_DRY_TYPE_FILL = "FCE4D6"
 ORDINARY_DRY_TYPE = "普通烘干"
@@ -104,6 +106,7 @@ WAVE_DOMESTIC_IRON_MAIN_FILL = "D9E2F3"
 WAVE_DOMESTIC_IRON_TYPE_FILL = "BDD7EE"
 WAVE_EXPORT_IRON_MAIN_FILL = "EADCF8"
 WAVE_EXPORT_IRON_TYPE_FILL = "D9D2E9"
+MISSING_COEFFICIENT_SKIP_FILL = "D9E1F2"
 WAVE_FINAL_TYPES = {
     WAVE_DOMESTIC_INVERTER_TYPE,
     WAVE_EXPORT_INVERTER_TYPE,
@@ -132,9 +135,15 @@ ROLLING_LABELS = [
     PENGUIN_WASH_TYPE,
     C6_WASH_TYPE,
     C6_DRY_TYPE,
+    HEAT_PUMP_WASH_DRYER_TYPE,
     ORDINARY_DRY_TYPE,
     "内销",
+    "普通内销6、7、8kg",
+    "普通内销9、10kg",
     EXPORT_TYPE,
+    "外销6、7、8kg",
+    "外销9、10kg",
+    "外销12kg",
 ]
 WAVE_LABELS = [
     "CKD",
@@ -147,6 +156,134 @@ WAVE_LABELS = [
     WAVE_EXPORT_IRON_TYPE,
     WAVE_DOMESTIC_IRON_TYPE,
 ]
+
+A_LINE_DETAIL_LABELS = [
+    EXPORT_TYPE,
+    "SKD",
+    "SKD（烘干）",
+    "普通内销6、7、8kg",
+    "普通内销9、10kg",
+    T7P7_WASH_TYPE,
+    T7P7_DRY_TYPE,
+    T9P9_WASH_TYPE,
+    T10P10_WASH_TYPE,
+    ORDINARY_DRY_TYPE,
+    C6_WASH_TYPE,
+    "三星",
+]
+D_LINE_DETAIL_LABELS = [
+    "三星",
+    C6_WASH_TYPE,
+    T7P7_WASH_TYPE,
+    "外销6、7、8kg",
+    "外销9、10kg",
+    "外销12kg",
+]
+E_LINE_DETAIL_LABELS = [
+    HEAT_PUMP_WASH_DRYER_TYPE,
+    ORDINARY_DRY_TYPE,
+    EXPORT_TYPE,
+    "内销",
+    T7P7_WASH_TYPE,
+    T7P7_DRY_TYPE,
+    C6_WASH_TYPE,
+    C6_DRY_TYPE,
+    T9P9_WASH_TYPE,
+    T9P9_DRY_TYPE,
+    T9P9_DRYER_TYPE,
+    T10P10_DRYER_TYPE,
+    T10P10_WASH_TYPE,
+    C6_HEAT_PUMP_DRYER_TYPE,
+    PENGUIN_DRYER_TYPE,
+    PENGUIN_WASH_TYPE,
+    COMPOSITE_DRY_TYPE,
+]
+H_LINE_DETAIL_LABELS = [
+    HEAT_PUMP_WASH_DRYER_TYPE,
+    ORDINARY_DRY_TYPE,
+    C6_HEAT_PUMP_DRYER_TYPE,
+    C6_DRY_TYPE,
+    T7P7_DRY_TYPE,
+    T7P7_WASH_TYPE,
+    T9P9_DRYER_TYPE,
+    T10P10_DRYER_TYPE,
+    EXPORT_TYPE,
+    "内销9、10、12kg",
+    "内销6、7、8kg",
+    "双滚筒",
+]
+WAVE_LINE_DETAIL_LABELS = [
+    WAVE_PLASTIC_DOMESTIC_TYPE,
+    WAVE_EXPORT_IRON_TYPE,
+    WAVE_DOMESTIC_IRON_TYPE,
+    WAVE_LG_TYPE,
+    WAVE_P7P9_LABEL,
+    WAVE_DOMESTIC_INVERTER_TYPE,
+    WAVE_EXPORT_INVERTER_TYPE,
+    "CKD",
+    "SKD",
+    "塑料美的",
+]
+SPARE_PART_LINE_DETAIL_LABELS = ["滚筒CKD"]
+LINE_DETAIL_BLOCKS = [
+    ("A线白", "A线", A_LINE_DETAIL_LABELS, "rolling", 2),
+    ("A线夜", "A线夜", A_LINE_DETAIL_LABELS, "rolling", 2),
+    ("D线白", "D线", D_LINE_DETAIL_LABELS, "rolling", 2),
+    ("D线夜", "D线夜", D_LINE_DETAIL_LABELS, "rolling", 2),
+    ("E线白", "E线", E_LINE_DETAIL_LABELS, "rolling", 3),
+    ("E线夜", "E线夜", E_LINE_DETAIL_LABELS, "rolling", 3),
+    ("H线白", "H线", H_LINE_DETAIL_LABELS, "rolling", 3),
+    ("H线夜", "H线夜", H_LINE_DETAIL_LABELS, "rolling", 3),
+    ("C线", "C线", WAVE_LINE_DETAIL_LABELS, "wave", 1),
+    ("B线", "B线", WAVE_LINE_DETAIL_LABELS, "wave", 1),
+    ("散件线", "散件线", SPARE_PART_LINE_DETAIL_LABELS, "rolling", None),
+]
+LINE_DETAIL_BUDGET_ROWS = [
+    ("A白", "A线"),
+    ("A夜", "A线夜"),
+    ("B", "B线"),
+    ("C", "C线"),
+    ("D白", "D线"),
+    ("D夜", "D线夜"),
+    ("E", "E线"),
+    ("H", "H线"),
+]
+A_DOMESTIC_SMALL_METAL_KEYWORDS = [
+    "340滚筒变频",
+    "6kg滚筒变频",
+    "7kg滚筒变频",
+    "8kg滚筒变频",
+    "6kg箱体",
+    "7kg箱体",
+    "8kg箱体",
+]
+A_DOMESTIC_BIG_METAL_KEYWORDS = [
+    "500滚筒变频",
+    "T10滚筒变频",
+    "9kg滚筒变频",
+    "10kg滚筒变频",
+    "15kg滚筒变频",
+]
+D_EXPORT_SMALL_METAL_KEYWORDS = A_DOMESTIC_SMALL_METAL_KEYWORDS
+D_EXPORT_BIG_METAL_KEYWORDS = [
+    *A_DOMESTIC_BIG_METAL_KEYWORDS,
+    "9kg箱体",
+    "10kg箱体",
+]
+D_EXPORT_12KG_METAL_KEYWORDS = ["12kg变频", "12kg滚筒变频", "12kg箱体"]
+A_DOMESTIC_SMALL_DESCRIPTION_KEYWORDS = ["TG-V80"]
+A_DOMESTIC_BIG_DESCRIPTION_KEYWORDS = ["G100"]
+D_EXPORT_SMALL_DESCRIPTION_KEYWORDS = ["TWF80", "WF75"]
+D_EXPORT_BIG_DESCRIPTION_KEYWORDS = ["TWF100", "TWF90", "WF100"]
+D_EXPORT_12KG_DESCRIPTION_KEYWORDS = ["TWF120"]
+EH_EXPORT_12KG_DESCRIPTION_KEYWORDS = ["TWF140"]
+KG_SEGMENT_FILLS = {
+    "普通内销6、7、8kg": "E2F0D9",
+    "普通内销9、10kg": "DDEBF7",
+    "外销6、7、8kg": "E2F0D9",
+    "外销9、10kg": "DDEBF7",
+    "外销12kg": "FCE4D6",
+}
 
 
 @dataclass
@@ -274,6 +411,12 @@ class ExtraOrderSummaryResult:
     category_totals: dict[str, Decimal] = field(default_factory=dict)
     category_rows: dict[str, int] = field(default_factory=dict)
     capacity_totals: dict[str, Decimal] = field(default_factory=dict)
+
+
+@dataclass
+class MaterialCodeAuditResult:
+    corrected_rows: int
+    review_rows: int
 
 
 @dataclass(frozen=True)
@@ -1162,11 +1305,13 @@ def write_extra_order_summary(
     values_sheet = values_workbook[main_sheet_name]
     headers = _header_map(sheet)
     _require_columns(headers, ["线体", "钣金型号", "订单数", "类型"], "主数据表")
+    _apply_heat_pump_wash_dryer_writeback(sheet, values_sheet, headers, logger)
+    _apply_ad_kg_segment_writeback(sheet, values_sheet, headers, logger)
 
-    if DETAIL_SHEET_NAME not in workbook.sheetnames and "类型" in headers:
+    if "类型" in headers:
         summary = _collect_decomposition_summary(sheet, headers)
         write_decomposition_detail_sheet(workbook, main_sheet_name, summary, logger)
-    elif DETAIL_SHEET_NAME not in workbook.sheetnames:
+    else:
         workbook.create_sheet(DETAIL_SHEET_NAME)
         _move_sheet_after(workbook, DETAIL_SHEET_NAME, main_sheet_name)
         logger.warning(f"未找到“{DETAIL_SHEET_NAME}”和“类型”列，已仅创建右侧额外订单信息汇总表。")
@@ -1221,6 +1366,101 @@ def write_extra_order_summary(
         category_totals=category_totals,
         category_rows=category_rows,
         capacity_totals=capacity_totals,
+    )
+
+
+def audit_and_correct_material_code_types(
+    workbook: Workbook,
+    values_workbook: Workbook,
+    main_sheet_name: str,
+    logger: ProcessingLogger,
+) -> MaterialCodeAuditResult:
+    """Audit product-family classifications using the material-code prefix.
+
+    Only deterministic corrections are written back.  Other family conflicts are
+    retained in a separate sheet so that the user can decide how to classify them.
+    """
+    sheet = workbook[main_sheet_name]
+    values_sheet = values_workbook[main_sheet_name]
+    headers = _header_map(sheet)
+    _require_columns(headers, ["物料编码", "类型"], "主数据表")
+
+    code_col = headers["物料编码"]
+    type_col = headers["类型"]
+    description_col = headers.get("物料描述")
+    remark_col = headers.get("备注")
+    line_col = headers.get("线体")
+    qty_col = headers.get("订单数")
+    metal_col = headers.get("钣金型号")
+
+    review_headers = [
+        "原始行号", "物料编码", "物料描述", "备注", "线体", "订单数",
+        "钣金型号", "当前类型", "物料编码类别", "审计结果",
+    ]
+    review_rows: list[list[Any]] = []
+    corrected_rows = 0
+
+    def paired_value(row_index: int, column_index: int | None) -> Any:
+        if column_index is None:
+            return None
+        value = values_sheet.cell(row_index, column_index).value
+        return value if value not in (None, "") else sheet.cell(row_index, column_index).value
+
+    for row_index in range(2, sheet.max_row + 1):
+        code = paired_value(row_index, code_col)
+        product_kind = _product_kind_from_material_code(code)
+        if product_kind == "unknown":
+            continue
+        current_type = str(sheet.cell(row_index, type_col).value or "").strip()
+        if not _material_code_type_conflict(product_kind, current_type):
+            continue
+
+        description = str(paired_value(row_index, description_col) or "").strip()
+        sheet_metal = str(paired_value(row_index, metal_col) or "").strip()
+        corrected_type = _deterministic_type_correction(
+            product_kind, current_type, description, sheet_metal
+        )
+        if corrected_type:
+            sheet.cell(row_index, type_col).value = corrected_type
+            values_sheet.cell(row_index, type_col).value = corrected_type
+            corrected_rows += 1
+            continue
+
+        review_rows.append([
+            row_index,
+            code,
+            description,
+            paired_value(row_index, remark_col),
+            paired_value(row_index, line_col),
+            paired_value(row_index, qty_col),
+            sheet_metal,
+            current_type,
+            _material_code_kind_label(product_kind),
+            _material_code_conflict_message(product_kind),
+        ])
+
+    remove_sheet_if_exists(workbook, MATERIAL_CODE_AUDIT_SHEET_NAME)
+    review_sheet = workbook.create_sheet(MATERIAL_CODE_AUDIT_SHEET_NAME)
+    review_sheet.append(review_headers)
+    for row in review_rows:
+        review_sheet.append(row)
+    review_sheet.freeze_panes = "A2"
+    review_sheet.auto_filter.ref = review_sheet.dimensions
+    for cell in review_sheet[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(fill_type="solid", fgColor="1F4E78")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    for column_cells in review_sheet.columns:
+        max_length = max(len(str(cell.value or "")) for cell in column_cells)
+        review_sheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 10), 48)
+    _move_sheet_after(workbook, MATERIAL_CODE_AUDIT_SHEET_NAME, main_sheet_name)
+    logger.info(
+        f"物料编码分类复核完成：自动纠正 {corrected_rows} 行；"
+        f"待人工复核 {len(review_rows)} 行。"
+    )
+    return MaterialCodeAuditResult(
+        corrected_rows=corrected_rows,
+        review_rows=len(review_rows),
     )
 
 
@@ -1279,59 +1519,355 @@ def write_line_classification_detail_sheet(
 ) -> None:
     sheet = workbook[main_sheet_name]
     values_sheet = values_workbook[main_sheet_name]
+    preserved_bad_rates = _capture_line_budget_rates(workbook)
     remove_sheet_if_exists(workbook, LINE_CLASSIFICATION_SHEET_NAME)
     remove_sheet_if_exists(workbook, LEGACY_LINE_CLASSIFICATION_SHEET_NAME)
     detail_sheet = workbook.create_sheet(LINE_CLASSIFICATION_SHEET_NAME)
 
     rolling_line_order = _actual_line_order(sheet, headers, ROLLING_LINE_ORDER, rolling=True)
     wave_line_order = _actual_line_order(sheet, headers, WAVE_LINE_ORDER, rolling=False)
+    line_order = list(dict.fromkeys([line for _, line, _, _, _ in LINE_DETAIL_BLOCKS] + rolling_line_order + wave_line_order))
 
     rolling_line_types = _collect_line_type_totals(sheet, values_sheet, headers, rolling_line_order)
     wave_line_types = _collect_line_type_totals(sheet, values_sheet, headers, wave_line_order)
     rolling_line_totals = _collect_line_totals(sheet, values_sheet, headers, rolling_line_order)
     wave_line_totals = _collect_line_totals(sheet, values_sheet, headers, wave_line_order)
+    line_row_counts = _collect_line_row_counts(sheet, headers, line_order)
 
-    row_index = 1
-    row_index = _write_line_detail_section(
-        detail_sheet,
-        row_index,
-        "滚筒线体分类明细-订单数",
-        rolling_line_order,
-        _build_line_detail_rows(ROLLING_LABELS, rolling_line_order, rolling_line_types, "rolling", "order"),
-        rolling_line_totals,
-        "order",
-    )
-    _write_line_detail_section(
-        detail_sheet,
-        row_index + 2,
-        "滚筒线体分类明细-标台数",
-        rolling_line_order,
-        _build_line_detail_rows(ROLLING_LABELS, rolling_line_order, rolling_line_types, "rolling", "standard"),
-        rolling_line_totals,
-        "standard",
-    )
-    row_index = detail_sheet.max_row + 3
-    row_index = _write_line_detail_section(
-        detail_sheet,
-        row_index,
-        "波轮线体分类明细-订单数",
-        wave_line_order,
-        _build_line_detail_rows(WAVE_LABELS, wave_line_order, wave_line_types, "wave", "order"),
-        wave_line_totals,
-        "order",
-    )
-    _write_line_detail_section(
-        detail_sheet,
-        row_index + 2,
-        "波轮线体分类明细-标台数",
-        wave_line_order,
-        _build_line_detail_rows(WAVE_LABELS, wave_line_order, wave_line_types, "wave", "standard"),
-        wave_line_totals,
-        "standard",
-    )
+    block_start_rows: dict[str, int] = {}
+    row_index = 4
+    for display_name, source_line, base_labels, section, change_multiplier in _line_detail_blocks_for_workbook(
+        rolling_line_order, wave_line_order
+    ):
+        type_totals = rolling_line_types if section == "rolling" else wave_line_types
+        line_totals = rolling_line_totals if section == "rolling" else wave_line_totals
+        labels = _line_detail_labels_for_block(base_labels, type_totals.get(source_line, {}), logger, display_name)
+        block_start_rows[source_line] = row_index
+        row_index = _write_latest_line_detail_block(
+            detail_sheet,
+            row_index,
+            display_name,
+            source_line,
+            labels,
+            section,
+            type_totals.get(source_line, {}),
+            line_totals.get(source_line, {"order": Decimal("0"), "standard": Decimal("0")}),
+            line_row_counts.get(source_line, 0),
+            change_multiplier,
+        )
+
+    _write_line_bad_allowance_budget(detail_sheet, block_start_rows, preserved_bad_rates)
     _style_line_classification_detail_sheet(detail_sheet)
     _move_sheet_after(workbook, LINE_CLASSIFICATION_SHEET_NAME, DETAIL_SHEET_NAME)
-    logger.info(f"已创建“{LINE_CLASSIFICATION_SHEET_NAME}”，并分表汇总各分类订单数和标台数。")
+    logger.info(f"已按新版式创建“{LINE_CLASSIFICATION_SHEET_NAME}”，并汇总月度排单数、线体标台数、订单数和不良宽放工时预算。")
+
+
+def _apply_ad_kg_segment_writeback(
+    sheet: Worksheet,
+    values_sheet: Worksheet,
+    headers: dict[str, int],
+    logger: ProcessingLogger,
+) -> None:
+    required = {"线体", "钣金型号", "类型"}
+    if not required.issubset(headers):
+        return
+    channel_col = headers.get("渠道")
+    description_col = headers.get("物料描述")
+    updated = 0
+    colored = 0
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        current_type = str(sheet.cell(row_index, headers["类型"]).value or "").strip()
+        metal_model = str(
+            values_sheet.cell(row_index, headers["钣金型号"]).value
+            or sheet.cell(row_index, headers["钣金型号"]).value
+            or ""
+        ).strip()
+        material_description = str(
+            (
+                values_sheet.cell(row_index, description_col).value
+                if description_col
+                else None
+            )
+            or (
+                sheet.cell(row_index, description_col).value
+                if description_col
+                else None
+            )
+            or ""
+        ).strip()
+        segment = _ad_kg_segment_for_row(
+            line,
+            current_type,
+            metal_model,
+            material_description,
+        )
+        if not segment:
+            continue
+
+        type_cell = sheet.cell(row_index, headers["类型"])
+        if type_cell.value != segment:
+            type_cell.value = segment
+            updated += 1
+
+        fill_rgb = KG_SEGMENT_FILLS[segment]
+        for col_index in [headers["钣金型号"], channel_col]:
+            if not col_index:
+                continue
+            cell = sheet.cell(row_index, col_index)
+            cell.fill = PatternFill(fill_type="solid", fgColor=fill_rgb)
+            _set_font_for_fill(cell, fill_rgb)
+            colored += 1
+    if updated or colored:
+        logger.info(f"A/D 线公斤段主表回写完成：更新类型 {updated} 行，钣金型号/渠道着色 {colored} 个单元格。")
+
+
+def _apply_heat_pump_wash_dryer_writeback(
+    sheet: Worksheet,
+    values_sheet: Worksheet,
+    headers: dict[str, int],
+    logger: ProcessingLogger,
+) -> None:
+    type_col = headers.get("类型")
+    remark_col = headers.get("备注")
+    description_col = headers.get("物料描述")
+    if not type_col or (not remark_col and not description_col):
+        return
+
+    updated = 0
+    for row_index in range(2, sheet.max_row + 1):
+        source_text = " ".join(
+            str(
+                (
+                    values_sheet.cell(row_index, column).value
+                    or sheet.cell(row_index, column).value
+                    or ""
+                )
+            )
+            for column in (remark_col, description_col)
+            if column
+        )
+        if "热泵洗烘一体机" not in source_text:
+            continue
+        type_cell = sheet.cell(row_index, type_col)
+        if type_cell.value != HEAT_PUMP_WASH_DRYER_TYPE:
+            type_cell.value = HEAT_PUMP_WASH_DRYER_TYPE
+            updated += 1
+    if updated:
+        logger.info(f"热泵洗烘一体机主表回写完成：更新类型 {updated} 行。")
+
+
+def _ad_kg_segment_for_row(
+    line: str,
+    current_type: str,
+    metal_model: str,
+    material_description: str,
+) -> str | None:
+    description_upper = material_description.upper()
+    if line in {"A线", "A线夜"} and current_type in {
+        DOMESTIC_TYPE,
+        "内销",
+        "普通内销6、7、8kg",
+        "普通内销9、10kg",
+    }:
+        if _contains_any(metal_model, A_DOMESTIC_SMALL_METAL_KEYWORDS):
+            return "普通内销6、7、8kg"
+        if _contains_any(metal_model, A_DOMESTIC_BIG_METAL_KEYWORDS):
+            return "普通内销9、10kg"
+        if _contains_any(description_upper, A_DOMESTIC_SMALL_DESCRIPTION_KEYWORDS):
+            return "普通内销6、7、8kg"
+        if _contains_any(description_upper, A_DOMESTIC_BIG_DESCRIPTION_KEYWORDS):
+            return "普通内销9、10kg"
+    if line in {"D线", "D线夜"} and current_type in {
+        EXPORT_TYPE,
+        "外销6、7、8kg",
+        "外销9、10kg",
+        "外销12kg",
+    }:
+        if _contains_any(metal_model, D_EXPORT_12KG_METAL_KEYWORDS):
+            return "外销12kg"
+        if _contains_any(metal_model, D_EXPORT_SMALL_METAL_KEYWORDS):
+            return "外销6、7、8kg"
+        if _contains_any(metal_model, D_EXPORT_BIG_METAL_KEYWORDS):
+            return "外销9、10kg"
+        if _contains_any(description_upper, D_EXPORT_12KG_DESCRIPTION_KEYWORDS):
+            return "外销12kg"
+        if _contains_any(description_upper, D_EXPORT_SMALL_DESCRIPTION_KEYWORDS):
+            return "外销6、7、8kg"
+        if _contains_any(description_upper, D_EXPORT_BIG_DESCRIPTION_KEYWORDS):
+            return "外销9、10kg"
+    if line in {"E线", "H线"} and current_type in {
+        EXPORT_TYPE,
+        "外销12kg",
+    } and _contains_any(description_upper, EH_EXPORT_12KG_DESCRIPTION_KEYWORDS):
+        return "外销12kg"
+    return None
+
+
+def _contains_any(text: str, keywords: list[str]) -> bool:
+    return any(keyword in text for keyword in keywords)
+
+
+def _line_detail_blocks_for_workbook(
+    rolling_line_order: list[str],
+    wave_line_order: list[str],
+) -> list[tuple[str, str, list[str], str, int | None]]:
+    blocks = list(LINE_DETAIL_BLOCKS)
+    known_lines = {source_line for _, source_line, _, _, _ in blocks}
+    for line in rolling_line_order:
+        if line not in known_lines:
+            blocks.append((line, line, ROLLING_LABELS, "rolling", 2))
+            known_lines.add(line)
+    for line in wave_line_order:
+        if line not in known_lines:
+            blocks.append((line, line, WAVE_LINE_DETAIL_LABELS, "wave", 1))
+            known_lines.add(line)
+    return blocks
+
+
+def _line_detail_labels_for_block(
+    base_labels: list[str],
+    type_totals: dict[str, dict[str, Decimal]],
+    logger: ProcessingLogger,
+    display_name: str,
+) -> list[str]:
+    labels = list(base_labels)
+    covered_types = set()
+    for label in labels:
+        covered_types.update(_types_covered_by_line_detail_label(label))
+    extras = [
+        type_name
+        for type_name, totals in type_totals.items()
+        if type_name not in covered_types and totals.get("order", Decimal("0")) != Decimal("0")
+    ]
+    if extras:
+        labels.extend(extras)
+        logger.warning(f"“{LINE_CLASSIFICATION_SHEET_NAME}”中 {display_name} 模板缺少分类，已新增：{', '.join(extras)}。")
+    return labels
+
+
+def _types_covered_by_line_detail_label(label: str) -> set[str]:
+    if label == "SKD（烘干）":
+        return {"SKD烘干"}
+    if label == "内销":
+        return {"内销", DOMESTIC_TYPE}
+    if label == WAVE_P7P9_LABEL:
+        return {WAVE_P7P9_LABEL, WAVE_P7P9_TYPE}
+    return {label}
+
+
+def _collect_line_row_counts(sheet: Worksheet, headers: dict[str, int], line_order: list[str]) -> dict[str, int]:
+    totals = {line: 0 for line in line_order}
+    order_col = headers.get("订单数")
+    for row_index in range(2, sheet.max_row + 1):
+        line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
+        if line not in totals:
+            continue
+        if order_col and sheet.cell(row_index, order_col).value in (None, ""):
+            continue
+        totals[line] += 1
+    return totals
+
+
+def _write_latest_line_detail_block(
+    sheet: Worksheet,
+    start_row: int,
+    display_name: str,
+    source_line: str,
+    labels: list[str],
+    section: str,
+    type_totals: dict[str, dict[str, Decimal]],
+    line_totals: dict[str, Decimal],
+    line_row_count: int,
+    change_multiplier: int | None,
+) -> int:
+    end_row = start_row + len(labels) - 1
+    for row_index in range(start_row, end_row + 1):
+        sheet.cell(row_index, 2).value = display_name if row_index == start_row else None
+        label = labels[row_index - start_row]
+        sheet.cell(row_index, 3).value = label
+        value = _line_detail_category_value(label, type_totals, section)["order"]
+        sheet.cell(row_index, 4).value = _number_or_int(value)
+
+    for col_index in [2, 5, 6, 7, 8, 9]:
+        sheet.merge_cells(start_row=start_row, start_column=col_index, end_row=end_row, end_column=col_index)
+
+    sheet.cell(start_row, 5).value = f"=SUM(D{start_row}:D{end_row})"
+    sheet.cell(start_row, 6).value = _number_one_decimal(line_totals.get("standard", Decimal("0")))
+    sheet.cell(start_row, 6).number_format = "0.0"
+    sheet.cell(start_row, 7).value = line_row_count
+    if change_multiplier is None:
+        sheet.cell(start_row, 8).value = "/"
+    else:
+        sheet.cell(start_row, 8).value = f"=G{start_row}/2*{change_multiplier}/60"
+        sheet.cell(start_row, 8).number_format = "0.0"
+    return end_row + 1
+
+
+def _line_detail_category_value(
+    label: str | None,
+    type_totals: dict[str, dict[str, Decimal]],
+    section: str,
+) -> dict[str, Decimal]:
+    if label == "SKD（烘干）":
+        return type_totals.get("SKD烘干", {"order": Decimal("0"), "standard": Decimal("0")})
+    return _line_category_value(label, type_totals, section)
+
+
+def _capture_line_budget_rates(workbook: Workbook) -> dict[str, Any]:
+    if LINE_CLASSIFICATION_SHEET_NAME not in workbook.sheetnames:
+        return {}
+    sheet = workbook[LINE_CLASSIFICATION_SHEET_NAME]
+    rates: dict[str, Any] = {}
+    for row_index in range(1, sheet.max_row + 1):
+        line_name = sheet.cell(row_index, 11).value
+        if not line_name:
+            continue
+        rate = sheet.cell(row_index, 13).value
+        if rate not in (None, ""):
+            rates[str(line_name)] = rate
+    return rates
+
+
+def _write_line_bad_allowance_budget(
+    sheet: Worksheet,
+    block_start_rows: dict[str, int],
+    preserved_bad_rates: dict[str, Any],
+) -> None:
+    for row_offset, (display_line, source_line) in enumerate(LINE_DETAIL_BUDGET_ROWS, start=4):
+        sheet.cell(row_offset, 11).value = display_line
+        source_row = block_start_rows.get(source_line)
+        sheet.cell(row_offset, 12).value = f"=E{source_row}" if source_row else 0
+        sheet.cell(row_offset, 13).value = preserved_bad_rates.get(display_line, 0)
+        sheet.cell(row_offset, 14).value = _default_line_staff_formula(display_line)
+        sheet.cell(row_offset, 15).value = "=10/3600" if row_offset == 4 else None
+        sheet.cell(row_offset, 16).value = f"=L{row_offset}*M{row_offset}*N{row_offset}*$O$4"
+        sheet.cell(row_offset, 17).value = f"=IF(N{row_offset}=0,0,P{row_offset}/N{row_offset})"
+
+        if source_row:
+            sheet.cell(source_row, 9).value = f"=P{row_offset}"
+            sheet.cell(source_row, 9).number_format = "0.0"
+
+    total_row = 4 + len(LINE_DETAIL_BUDGET_ROWS)
+    sheet.cell(total_row, 11).value = "合计"
+    sheet.cell(total_row, 16).value = f"=SUM(P4:P{total_row - 1})"
+    sheet.cell(total_row, 17).value = f"=SUM(Q4:Q{total_row - 1})"
+    sheet.merge_cells(start_row=4, start_column=15, end_row=total_row - 1, end_column=15)
+    sheet.merge_cells(start_row=total_row, start_column=11, end_row=total_row, end_column=15)
+
+
+def _default_line_staff_formula(display_line: str) -> Any:
+    formulas = {
+        "A白": "=106+5",
+        "A夜": "=110+5",
+        "B": 0,
+        "C": 101,
+        "D白": "=96+5",
+        "D夜": "=98+5",
+        "E": "=75+5",
+        "H": "=71+5",
+    }
+    return formulas.get(display_line, 0)
 
 
 def _capture_detail_sheet_styles(workbook: Workbook) -> dict[tuple[str, str], list[dict[str, Any]]]:
@@ -1440,6 +1976,34 @@ def _is_uncolored_for_decomposition(sheet: Worksheet, row_index: int, headers: d
         if cell.fill.fill_type is not None:
             return False
     return True
+
+
+def mark_missing_coefficient_rows_for_skip(
+    workbook: Workbook,
+    values_workbook: Workbook,
+    main_sheet_name: str,
+    logger: ProcessingLogger,
+) -> int:
+    """Keep unresolved coefficient rows out of decomposition without deleting them."""
+    sheet = workbook[main_sheet_name]
+    values_sheet = values_workbook[main_sheet_name]
+    headers = _header_map(sheet)
+    values_headers = _header_map(values_sheet)
+    _require_columns(headers, ["系数", *DECOMPOSE_COLUMNS], "主数据表")
+    _require_columns(values_headers, ["系数"], "主数据表缓存")
+
+    skipped_rows = 0
+    fill = PatternFill(fill_type="solid", fgColor=MISSING_COEFFICIENT_SKIP_FILL)
+    for row_index in range(2, sheet.max_row + 1):
+        coefficient = _to_decimal_or_none(values_sheet.cell(row_index, values_headers["系数"]).value)
+        if coefficient is not None:
+            continue
+        for field in DECOMPOSE_COLUMNS:
+            sheet.cell(row_index, headers[field]).fill = copy(fill)
+        skipped_rows += 1
+
+    logger.info(f"系数仍缺失、已跳过定编分解的订单行：{skipped_rows} 行。")
+    return skipped_rows
 
 
 def _style_decomposition_sheet(sheet: Worksheet) -> None:
@@ -1832,39 +2396,83 @@ def _write_line_detail_section(
 
 
 def _style_line_classification_detail_sheet(sheet: Worksheet) -> None:
-    blue_fill = PatternFill(fill_type="solid", fgColor="0070C0")
-    header_fill = PatternFill(fill_type="solid", fgColor="D9E2F3")
-    total_fill = PatternFill(fill_type="solid", fgColor="E2F0D9")
+    blue_fill = PatternFill(fill_type="solid", fgColor="4472C4")
+    header_fill = PatternFill(fill_type="solid", fgColor="F2F2F2")
+    side_fill = PatternFill(fill_type="solid", fgColor="D9D9D9")
+    green_fill = PatternFill(fill_type="solid", fgColor="E2F0D9")
     thin = Side(style="thin", color="000000")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-    max_col = sheet.max_column
-    for row in sheet.iter_rows(min_row=1, max_row=sheet.max_row, min_col=1, max_col=max_col):
+    sheet.merge_cells("B2:I2")
+    sheet.merge_cells("K2:Q2")
+    sheet["B2"].value = LINE_CLASSIFICATION_SHEET_NAME
+    sheet["K2"].value = "订单不良宽放工时预算表"
+    left_headers = ["类别", "产品类型", "月度排单数", "线体排单数", "线体标台数", "订单数", "转产时间", "返修损失"]
+    right_headers = ["线体", "预算产量", "不良率", "影响人员", "不良损失系数", "不良影响总工时", "影响人工时"]
+    for col_offset, header in enumerate(left_headers, start=2):
+        sheet.cell(3, col_offset).value = header
+    for col_offset, header in enumerate(right_headers, start=11):
+        sheet.cell(3, col_offset).value = header
+
+    max_col = max(sheet.max_column, 17)
+    max_row = max(sheet.max_row, 12)
+    for row in sheet.iter_rows(min_row=2, max_row=max_row, min_col=2, max_col=max_col):
         for cell in row:
             cell.border = border
             cell.alignment = Alignment(horizontal="center", vertical="center")
             cell.font = Font(color="000000", bold=False)
 
-    for row_index in range(1, sheet.max_row + 1):
-        first_value = sheet.cell(row_index, 1).value
-        if str(first_value or "").startswith(("滚筒线体分类明细", "波轮线体分类明细")):
-            for cell in sheet[row_index]:
-                cell.fill = blue_fill
-                cell.font = Font(color="FFFFFF", bold=True)
-                cell.alignment = Alignment(horizontal="center", vertical="center")
-        elif first_value == "分类名称":
-            for cell in sheet[row_index]:
-                cell.fill = header_fill
-                cell.font = Font(color="000000", bold=True)
-        elif first_value in {"订单数合计", "标台数合计"}:
-            for cell in sheet[row_index]:
-                cell.fill = total_fill
-                cell.font = Font(color="000000", bold=True)
+    for cell in list(sheet["2"])[1:9] + list(sheet["2"])[10:17]:
+        cell.fill = blue_fill
+        cell.font = Font(color="FFFFFF", bold=True, size=14)
+    for cell in list(sheet["3"])[1:9] + list(sheet["3"])[10:17]:
+        cell.fill = header_fill
+        cell.font = Font(color="000000", bold=True)
+
+    for row_index in range(4, max_row + 1):
+        for col_index in range(5, 10):
+            sheet.cell(row_index, col_index).fill = side_fill
+        if sheet.cell(row_index, 2).value:
+            sheet.cell(row_index, 2).font = Font(color="000000", bold=True)
+        if sheet.cell(row_index, 3).value:
+            sheet.cell(row_index, 3).font = Font(color="000000", bold=True)
+        if row_index <= 11:
+            for col_index in range(12, 17):
+                sheet.cell(row_index, col_index).fill = green_fill
+        if row_index == 12:
+            for col_index in range(11, 18):
+                sheet.cell(row_index, col_index).font = Font(color="000000", bold=True)
+
+    for row_index in range(4, max_row + 1):
+        sheet.cell(row_index, 4).number_format = "0"
+        for col_index in [6, 8, 9, 12, 16, 17]:
+            sheet.cell(row_index, col_index).number_format = "0.0"
+        sheet.cell(row_index, 13).number_format = "0.00%"
+        sheet.cell(row_index, 15).number_format = "0.0000"
 
     sheet.freeze_panes = "B4"
-    sheet.column_dimensions["A"].width = 34
-    for col_index in range(2, max_col + 1):
-        sheet.column_dimensions[get_column_letter(col_index)].width = 12
+    sheet.sheet_view.showGridLines = False
+    widths = {
+        "A": 2,
+        "B": 12,
+        "C": 30,
+        "D": 14,
+        "E": 14,
+        "F": 14,
+        "G": 10,
+        "H": 12,
+        "I": 12,
+        "J": 2,
+        "K": 10,
+        "L": 12,
+        "M": 12,
+        "N": 12,
+        "O": 14,
+        "P": 14,
+        "Q": 12,
+    }
+    for column, width in widths.items():
+        sheet.column_dimensions[column].width = width
 
 
 def _clear_extra_summary_metal_fills(sheet: Worksheet, headers: dict[str, int]) -> None:
@@ -2038,6 +2646,53 @@ def _product_kind_from_material_code(value: Any) -> str:
     if body.startswith("60102"):
         return "dry"
     return "unknown"
+
+
+def _material_code_type_conflict(product_kind: str, type_name: str) -> bool:
+    if not type_name:
+        return False
+    if type_name == HEAT_PUMP_WASH_DRYER_TYPE:
+        return False
+    if product_kind == "wash":
+        return "烘干" in type_name or "干衣机" in type_name
+    if product_kind == "dry":
+        return (
+            "单洗" in type_name
+            or "干衣机" in type_name
+            or type_name in {DOMESTIC_TYPE, EXPORT_TYPE}
+        )
+    if product_kind == "dryer":
+        return (
+            "单洗" in type_name
+            or ("烘干" in type_name and "干衣机" not in type_name)
+            or type_name in {DOMESTIC_TYPE, EXPORT_TYPE}
+        )
+    return False
+
+
+def _deterministic_type_correction(
+    product_kind: str,
+    current_type: str,
+    description: str,
+    sheet_metal: str,
+) -> str | None:
+    if (
+        product_kind == "dryer"
+        and current_type in {DOMESTIC_TYPE, EXPORT_TYPE}
+        and ("T10" in sheet_metal.upper() or description.upper().startswith("DWD10"))
+    ):
+        return T10P10_DRYER_TYPE
+    if product_kind == "dry" and current_type == EXPORT_TYPE:
+        return ORDINARY_DRY_TYPE
+    return None
+
+
+def _material_code_kind_label(product_kind: str) -> str:
+    return {"wash": "单洗", "dry": "烘干", "dryer": "干衣机"}.get(product_kind, "未知")
+
+
+def _material_code_conflict_message(product_kind: str) -> str:
+    return f"需人工复核：物料编码为{_material_code_kind_label(product_kind)}，当前分类与产品大类冲突。"
 
 
 def _is_t7p7t5p5_dreame_description(description: str) -> bool:

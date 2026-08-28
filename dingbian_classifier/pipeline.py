@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .classifier import classify_rows
 from .coefficients import (
     apply_manual_coefficients,
     cleanup_order_rows,
@@ -14,6 +13,7 @@ from .coefficients import (
     refresh_coefficient_lookup_formulas,
 )
 from .decomposition import (
+    audit_and_correct_material_code_types,
     decompose_rolling_remark_rules,
     decompose_c6_heat_pump_dryer,
     decompose_composite_penguin_c6,
@@ -25,6 +25,7 @@ from .decomposition import (
     decompose_t10p10,
     decompose_wave_basic,
     decompose_wave_final,
+    mark_missing_coefficient_rows_for_skip,
     write_extra_order_summary,
 )
 from .excel_repair import resave_with_excel_if_available
@@ -36,10 +37,10 @@ from .material_description import (
     apply_manual_material_descriptions,
     delete_missing_material_description_rows,
     fill_material_descriptions,
+    fill_material_descriptions_for_invalid_sheet_metal,
     prepare_material_descriptions,
 )
-from .reporter import write_log_sheet, write_results
-from .rule_config import ensure_config_sheet, load_rules
+from .reporter import write_log_sheet, write_type_summary_results
 from .sheet_metal import (
     apply_manual_sheet_metal_models,
     ensure_standard_units_column,
@@ -53,7 +54,9 @@ from .sheet_detector import find_target_sheet
 
 
 def set_active_sheet(workbook, sheet_name: str, logger: ProcessingLogger) -> None:
-    reset_auto_filter(workbook[sheet_name])
+    sheet = workbook[sheet_name]
+    reset_auto_filter(sheet)
+    sheet.freeze_panes = "A2"
     workbook.active = workbook.sheetnames.index(sheet_name)
     logger.info(f"已设置默认打开工作表：{sheet_name}")
 
@@ -74,6 +77,7 @@ def run(
     input_path: Path,
     output_dir: Path,
     stage: str = "classify",
+    target_sheet_name: str | None = None,
     coefficient_lookup: Path | None = None,
     sheet_metal_lookup: Path | None = None,
     sheet_metal_bom_lookup: Path | None = None,
@@ -90,8 +94,7 @@ def run(
     copy_workbook(input_path, output_path, logger)
 
     formula_wb, values_wb = load_workbook_pair(output_path)
-    original_sheet_names = set(formula_wb.sheetnames)
-    target_sheet_name = find_target_sheet(formula_wb.sheetnames, logger)
+    target_sheet_name = find_target_sheet(formula_wb.sheetnames, logger, target_sheet_name)
 
     if stage == "prepare-foundation-data":
         coefficient_result = prepare_coefficients(formula_wb, values_wb, target_sheet_name, logger)
@@ -115,6 +118,25 @@ def run(
             logger.warning("已生成基础数据补充工作表；可继续提供对应查询表或手工补充，全部补齐后再进入主表格式、标台数和排单分解。")
         else:
             logger.info("基础数据未发现待补项，可以继续 format-main-sheet。")
+        return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
+
+    if stage == "prepare-foundation-data-preserve-order-blanks":
+        coefficient_result = prepare_coefficients(
+            formula_wb,
+            values_wb,
+            target_sheet_name,
+            logger,
+            cleanup_rows=False,
+        )
+        refresh_sheet_metal_lookup_formulas(formula_wb[target_sheet_name], logger)
+        sheet_metal_result = prepare_sheet_metal(formula_wb, values_wb, target_sheet_name, logger)
+        material_result = prepare_material_descriptions(formula_wb, values_wb, target_sheet_name, logger)
+        logger.info(
+            "基础数据异常并行准备完成（保留订单数空白行）："
+            f"系数待补 {coefficient_result.coefficient_missing_rows} 行；"
+            f"钣金型号待补 {sheet_metal_result.sheet_metal_missing_rows} 行；"
+            f"物料描述待补 {material_result.missing_rows} 行。"
+        )
         return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
 
     if stage == "cleanup-order-rows":
@@ -325,6 +347,10 @@ def run(
         logger.info(f"处理完成：{output_path}")
         return output_path
 
+    if stage == "audit-material-code-types":
+        audit_and_correct_material_code_types(formula_wb, values_wb, target_sheet_name, logger)
+        return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
+
     if stage == "prepare-coefficients":
         prepare_result = prepare_coefficients(formula_wb, values_wb, target_sheet_name, logger)
         if prepare_result.coefficient_missing_rows:
@@ -354,7 +380,7 @@ def run(
         return output_path
 
     if stage == "apply-manual-coefficients":
-        apply_manual_coefficients(formula_wb, target_sheet_name, logger)
+        apply_manual_coefficients(formula_wb, values_wb, target_sheet_name, logger)
         logger.info(f"即将保存处理结果：{output_path}")
         move_auxiliary_sheets_after(formula_wb, target_sheet_name)
         write_log_sheet(formula_wb, logger)
@@ -438,7 +464,7 @@ def run(
         return output_path
 
     if stage == "apply-manual-sheet-metal":
-        apply_manual_sheet_metal_models(formula_wb, target_sheet_name, logger)
+        apply_manual_sheet_metal_models(formula_wb, values_wb, target_sheet_name, logger)
         logger.info(f"即将保存处理结果：{output_path}")
         move_auxiliary_sheets_after(formula_wb, target_sheet_name)
         write_log_sheet(formula_wb, logger)
@@ -482,6 +508,21 @@ def run(
         logger.info(f"处理完成：{output_path}")
         return output_path
 
+    if stage == "fill-material-description-for-invalid-sheet-metal":
+        if material_description_lookup is None:
+            raise ValueError(
+                "fill-material-description-for-invalid-sheet-metal 阶段必须提供 "
+                "--material-description-lookup。"
+            )
+        fill_material_descriptions_for_invalid_sheet_metal(
+            formula_wb,
+            values_wb,
+            target_sheet_name,
+            material_description_lookup.resolve(),
+            logger,
+        )
+        return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
+
     if stage == "apply-manual-material-description":
         apply_manual_material_descriptions(formula_wb, target_sheet_name, logger)
         logger.info(f"即将保存处理结果：{output_path}")
@@ -504,21 +545,16 @@ def run(
         logger.info(f"处理完成：{output_path}")
         return output_path
 
+    if stage == "skip-unresolved-coefficients":
+        mark_missing_coefficient_rows_for_skip(formula_wb, values_wb, target_sheet_name, logger)
+        return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
+
     headers, rows, _raw_rows = read_main_table(values_wb[target_sheet_name])
     logger.info(f"主数据表读取完成：表头 {len(headers)} 列，数据 {len(rows)} 行。")
 
-    ensure_config_sheet(formula_wb, logger)
-    rules = load_rules(formula_wb, headers, logger)
-    result = classify_rows(rows, rules)
-    logger.info(
-        f"分类执行完成：生成分类 {len(result.categories)} 个，未分类 {len(result.unmatched)} 行。"
-    )
-    if result.unmatched:
-        logger.warning("存在未分类数据，请查看“未分类数据”工作表并补充分类规则。")
-
     logger.info(f"即将保存处理结果：{output_path}")
     move_auxiliary_sheets_after(formula_wb, target_sheet_name)
-    write_results(formula_wb, headers, result, original_sheet_names, logger)
+    write_type_summary_results(formula_wb, headers, rows, logger)
     formula_wb.save(output_path)
     resave_with_excel_if_available(output_path, logger)
     cleanup_output_results(output_dir, output_path, logger)

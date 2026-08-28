@@ -487,6 +487,7 @@ def _ensure_supplement_column_before(sheet: Worksheet, header: str, before_heade
 
 def apply_manual_sheet_metal_models(
     workbook: Workbook,
+    values_workbook: Workbook,
     target_sheet_name: str,
     logger: ProcessingLogger,
 ) -> ManualSheetMetalApplyResult:
@@ -495,6 +496,11 @@ def apply_manual_sheet_metal_models(
         return ManualSheetMetalApplyResult(applied_rows=0, remaining_rows=0)
 
     source_sheet = workbook[SHEET_METAL_SUPPLEMENT_SHEET]
+    values_source_sheet = (
+        values_workbook[SHEET_METAL_SUPPLEMENT_SHEET]
+        if SHEET_METAL_SUPPLEMENT_SHEET in values_workbook.sheetnames
+        else None
+    )
     formula_sheet = workbook[target_sheet_name]
     source_headers = _header_map(source_sheet)
     main_headers = _header_map(formula_sheet)
@@ -504,6 +510,10 @@ def apply_manual_sheet_metal_models(
     row_no_col = source_headers["原始行号"]
     source_code_col = source_headers.get("物料编码")
     source_model_col = source_headers["钣金型号"]
+    values_source_model_col = None
+    if values_source_sheet is not None:
+        values_source_headers = _header_map(values_source_sheet)
+        values_source_model_col = values_source_headers.get("钣金型号")
     main_model_col = main_headers["钣金型号"]
     main_code_col = main_headers.get("物料编码")
     remaining_rows: list[int] = []
@@ -523,7 +533,14 @@ def apply_manual_sheet_metal_models(
 
     for row_index in range(2, source_sheet.max_row + 1):
         original_row = source_sheet.cell(row_index, row_no_col).value
-        model = source_sheet.cell(row_index, source_model_col).value
+        model = _manual_sheet_metal_model(
+            source_sheet.cell(row_index, source_model_col).value,
+            (
+                values_source_sheet.cell(row_index, values_source_model_col).value
+                if values_source_sheet is not None and values_source_model_col is not None
+                else None
+            ),
+        )
         source_code = _lookup_key(source_sheet.cell(row_index, source_code_col).value) if source_code_col else ""
         target_rows = rows_by_code.get(source_code, []) if source_code else []
         if not target_rows:
@@ -542,6 +559,7 @@ def apply_manual_sheet_metal_models(
         else:
             remaining_rows.extend(target_rows)
 
+    remaining_rows = sorted(set(remaining_rows))
     refresh_sheet_metal_supplement_sheet(workbook, formula_sheet, remaining_rows, logger)
     logger.info(f"已回填手工钣金型号：{applied_rows} 行；剩余暂不处理 {len(remaining_rows)} 行。")
     return ManualSheetMetalApplyResult(applied_rows=applied_rows, remaining_rows=len(remaining_rows))
@@ -712,6 +730,13 @@ def _is_valid_manual_model(value: Any) -> bool:
     if isinstance(value, str) and value.strip().startswith("="):
         return False
     return True
+
+
+def _manual_sheet_metal_model(formula_value: Any, cached_value: Any) -> Any:
+    """Return a usable supplement value, including an evaluated formula result."""
+    if isinstance(formula_value, str) and formula_value.strip().startswith("="):
+        return cached_value if _is_valid_manual_model(cached_value) else None
+    return formula_value
 
 
 def _fit_columns(sheet: Worksheet) -> None:

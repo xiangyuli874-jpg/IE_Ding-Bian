@@ -2,7 +2,7 @@ import unittest
 
 from openpyxl import Workbook
 
-from dingbian_classifier.coefficients import cleanup_order_rows
+from dingbian_classifier.coefficients import cleanup_order_rows, prepare_coefficients
 from dingbian_classifier.logger import ProcessingLogger
 
 
@@ -26,6 +26,32 @@ class CleanupOrderRowsTest(unittest.TestCase):
             [sheet.cell(row_index, 2).value for row_index in range(2, sheet.max_row + 1)],
             ["KEEP-1", "KEEP-2"],
         )
+
+    def test_prepare_coefficients_can_preserve_blank_order_rows(self):
+        formula_workbook = Workbook()
+        formula_sheet = formula_workbook.active
+        formula_sheet.append(["订单数", "物料编码", "线体", "系数"])
+        formula_sheet.append([None, "BLANK-ORDER", "A线", "#N/A"])
+        formula_sheet.append([100, "KEEP-1", "A线", "#N/A"])
+
+        values_workbook = Workbook()
+        values_sheet = values_workbook.active
+        values_sheet.append(["订单数", "物料编码", "线体", "系数"])
+        values_sheet.append([None, "BLANK-ORDER", "A线", "#N/A"])
+        values_sheet.append([100, "KEEP-1", "A线", "#N/A"])
+
+        result = prepare_coefficients(
+            formula_workbook,
+            values_workbook,
+            formula_sheet.title,
+            ProcessingLogger(),
+            cleanup_rows=False,
+        )
+
+        self.assertEqual(result.deleted_blank_order_rows, 0)
+        self.assertEqual(formula_sheet.max_row, 3)
+        supplement = formula_workbook["系数补充"]
+        self.assertEqual(supplement.max_row, 3)
 
 
 if __name__ == "__main__":

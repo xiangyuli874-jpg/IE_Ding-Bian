@@ -141,6 +141,69 @@ def fill_material_descriptions(
     )
 
 
+def fill_material_descriptions_for_invalid_sheet_metal(
+    workbook: Workbook,
+    values_workbook: Workbook,
+    target_sheet_name: str,
+    lookup_path: Path,
+    logger: ProcessingLogger,
+) -> MaterialDescriptionFillResult:
+    """Backfill descriptions when sheet metal is #N/A/N/A/zero, even if a description exists."""
+    lookup_pairs = read_material_description_lookup(lookup_path, logger)
+    lookup_map: dict[str, Any] = {}
+    conflicts = 0
+    for code, description in lookup_pairs:
+        if _is_blank(code) or _is_missing_description(description):
+            continue
+        code_key = _code_key(code)
+        if code_key in lookup_map and lookup_map[code_key] != description:
+            conflicts += 1
+            continue
+        lookup_map[code_key] = description
+
+    if not lookup_map:
+        raise ClassifierError("物料描述查询表没有可用的物料编码和物料描述。")
+
+    import_material_description_lookup_sheet(workbook, lookup_pairs, logger)
+    formula_sheet = workbook[target_sheet_name]
+    values_sheet = values_workbook[target_sheet_name]
+    headers = _header_map(values_sheet)
+    _require_columns(headers, ["物料编码", "钣金型号", "物料描述"], "主数据表")
+    code_col = headers["物料编码"]
+    sheet_metal_col = headers["钣金型号"]
+    description_col = headers["物料描述"]
+
+    remaining_rows: list[int] = []
+    filled_rows = 0
+    for row_index in range(2, values_sheet.max_row + 1):
+        sheet_metal = values_sheet.cell(row_index, sheet_metal_col).value
+        if not _is_invalid_sheet_metal(sheet_metal):
+            continue
+        code = values_sheet.cell(row_index, code_col).value
+        matched_description = lookup_map.get(_code_key(code))
+        if matched_description is None:
+            remaining_rows.append(row_index)
+            continue
+        formula_sheet.cell(row_index, description_col).value = matched_description
+        values_sheet.cell(row_index, description_col).value = matched_description
+        filled_rows += 1
+
+    still_missing_rows = find_missing_material_description_rows(values_sheet)
+    create_still_missing_sheet(workbook, formula_sheet, still_missing_rows, logger)
+    refresh_material_description_supplement_sheet(workbook, formula_sheet, still_missing_rows, logger)
+    if conflicts:
+        logger.warning(f"物料描述查询表存在重复物料编码且描述不同，已保留首次匹配：{conflicts} 条。")
+    logger.info(
+        f"已按钣金型号异常条件回填物料描述：{filled_rows} 行；"
+        f"钣金异常但未匹配 {len(remaining_rows)} 行。"
+    )
+    return MaterialDescriptionFillResult(
+        filled_rows=filled_rows,
+        remaining_rows=len(remaining_rows),
+        lookup_rows=len(lookup_pairs),
+    )
+
+
 def apply_manual_material_descriptions(
     workbook: Workbook,
     target_sheet_name: str,
@@ -426,6 +489,14 @@ def _code_key(value: Any) -> str:
 
 def _is_na(value: Any) -> bool:
     return value is not None and str(value).strip().upper() in {"#N/A", "#NA", "N/A"}
+
+
+def _is_invalid_sheet_metal(value: Any) -> bool:
+    if _is_na(value):
+        return True
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value == 0
+    return str(value).strip() in {"0", "0.0", "0.00"}
 
 
 def _is_missing_description(value: Any) -> bool:
