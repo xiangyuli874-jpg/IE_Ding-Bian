@@ -189,7 +189,7 @@ def create_sheet_metal_supplement_sheet(
     missing_count = 0
     for row_index in range(2, values_sheet.max_row + 1):
         value = values_sheet.cell(row_index, sheet_metal_col).value
-        if not _is_na(value):
+        if not (_is_blank(value) or _is_na(value)):
             continue
         missing_count += 1
         row_values = [
@@ -717,7 +717,7 @@ def _is_na(value: Any) -> bool:
     if value is None:
         return False
     value_text = str(value).strip()
-    return value_text.upper() in {"#N/A", "#NA", "N/A"} or value_text in {"0", "0.0", "0.00"}
+    return value_text.upper() in {"#N/A", "#NA", "N/A"} or value_text in {"0", "0.0", "0.00", "-"}
 
 
 def _is_blank(value: Any) -> bool:

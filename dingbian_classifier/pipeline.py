@@ -7,6 +7,7 @@ from pathlib import Path
 from .coefficients import (
     apply_manual_coefficients,
     cleanup_order_rows,
+    cleanup_order_rows_preserve_blank_orders,
     delete_coefficient_supplement_rows,
     fill_coefficients,
     prepare_coefficients,
@@ -27,6 +28,7 @@ from .decomposition import (
     decompose_wave_final,
     mark_missing_coefficient_rows_for_skip,
     write_extra_order_summary,
+    write_line_classification_detail_sheet,
 )
 from .excel_repair import resave_with_excel_if_available
 from .excel_io import build_output_path, copy_workbook, load_workbook_pair, move_auxiliary_sheets_after, read_main_table, reset_auto_filter
@@ -56,7 +58,15 @@ from .sheet_detector import find_target_sheet
 def set_active_sheet(workbook, sheet_name: str, logger: ProcessingLogger) -> None:
     sheet = workbook[sheet_name]
     reset_auto_filter(sheet)
+    # A source workbook may carry a legacy "split" pane.  Assigning
+    # ``freeze_panes`` alone does not remove that pane in openpyxl, which makes
+    # Excel show the same header in two independently scrollable windows.
+    sheet.sheet_view.pane = None
     sheet.freeze_panes = "A2"
+    if "线体分类明细表" in workbook.sheetnames:
+        line_detail_sheet = workbook["线体分类明细表"]
+        line_detail_sheet.sheet_view.pane = None
+        line_detail_sheet.freeze_panes = "B4"
     workbook.active = workbook.sheetnames.index(sheet_name)
     logger.info(f"已设置默认打开工作表：{sheet_name}")
 
@@ -121,6 +131,14 @@ def run(
         return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
 
     if stage == "prepare-foundation-data-preserve-order-blanks":
+        cleanup_result = cleanup_order_rows_preserve_blank_orders(
+            formula_wb[target_sheet_name],
+            logger,
+        )
+        cleanup_order_rows_preserve_blank_orders(
+            values_wb[target_sheet_name],
+            logger,
+        )
         coefficient_result = prepare_coefficients(
             formula_wb,
             values_wb,
@@ -133,6 +151,8 @@ def run(
         material_result = prepare_material_descriptions(formula_wb, values_wb, target_sheet_name, logger)
         logger.info(
             "基础数据异常并行准备完成（保留订单数空白行）："
+            f"线体空白删除 {cleanup_result.deleted_blank_line_rows} 行；"
+            f"指定物料编码删除 {cleanup_result.deleted_excluded_material_rows} 行；"
             f"系数待补 {coefficient_result.coefficient_missing_rows} 行；"
             f"钣金型号待补 {sheet_metal_result.sheet_metal_missing_rows} 行；"
             f"物料描述待补 {material_result.missing_rows} 行。"
@@ -347,6 +367,21 @@ def run(
         logger.info(f"处理完成：{output_path}")
         return output_path
 
+    if stage == "refresh-line-classification-detail":
+        headers = {
+            str(cell.value).strip(): cell.column
+            for cell in formula_wb[target_sheet_name][1]
+            if cell.value is not None
+        }
+        write_line_classification_detail_sheet(
+            formula_wb,
+            values_wb,
+            target_sheet_name,
+            headers,
+            logger,
+        )
+        return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
+
     if stage == "audit-material-code-types":
         audit_and_correct_material_code_types(formula_wb, values_wb, target_sheet_name, logger)
         return save_stage_output(formula_wb, output_path, output_dir, target_sheet_name, logger)
@@ -555,6 +590,8 @@ def run(
     logger.info(f"即将保存处理结果：{output_path}")
     move_auxiliary_sheets_after(formula_wb, target_sheet_name)
     write_type_summary_results(formula_wb, headers, rows, logger)
+    set_active_sheet(formula_wb, target_sheet_name, logger)
+    write_log_sheet(formula_wb, logger)
     formula_wb.save(output_path)
     resave_with_excel_if_available(output_path, logger)
     cleanup_output_results(output_dir, output_path, logger)

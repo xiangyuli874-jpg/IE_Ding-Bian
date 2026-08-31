@@ -50,6 +50,7 @@ def parse_args() -> argparse.Namespace:
             "decompose-wave-basic",
             "decompose-wave-final",
             "decompose-extra-summary",
+            "refresh-line-classification-detail",
             "audit-material-code-types",
             "classify",
         ],

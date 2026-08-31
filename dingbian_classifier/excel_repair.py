@@ -31,12 +31,14 @@ $excel.Visible = $false
 $excel.DisplayAlerts = $false
 try {{
   $wb = $excel.Workbooks.Open($src, 0, $false, 5, "", "", $true, 1, "", $false, $false, 0, $false, $true, 1)
-  $mainSheet = $wb.Worksheets.Item(1)
+  $mainSheet = $wb.ActiveSheet
   $mainSheet.Activate()
   $excel.ActiveWindow.FreezePanes = $false
+  $excel.ActiveWindow.Split = $false
   $excel.ActiveWindow.SplitColumn = 0
-  $excel.ActiveWindow.SplitRow = 1
+  $excel.ActiveWindow.SplitRow = 0
   $mainSheet.Range("A2").Select()
+  $excel.ActiveWindow.SplitRow = 1
   $excel.ActiveWindow.FreezePanes = $true
   $wb.SaveAs($dst, 51)
   $wb.Close($false)

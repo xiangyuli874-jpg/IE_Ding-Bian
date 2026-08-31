@@ -51,3 +51,24 @@ class MaterialCodeTypeAuditTest(unittest.TestCase):
         self.assertEqual(review_sheet.max_row, 2)
         self.assertEqual(review_sheet.cell(2, 2).value, "Z4U60101080001")
         self.assertIn("单洗", review_sheet.cell(2, 10).value)
+
+    def test_prioritizes_material_code_for_domestic_dry_and_c6_dryer(self):
+        rows = [
+            ["Z1U60102000142", "G100S3-HD", "", "E线", 100, "有效钣金", "普通内销"],
+            ["Z4U60501080131", "THP90-G06H", "", "H线", 1, "C6热泵干衣机", "外销"],
+        ]
+        formula_workbook = _workbook(rows)
+        values_workbook = _workbook(rows)
+
+        result = audit_and_correct_material_code_types(
+            formula_workbook,
+            values_workbook,
+            "主数据",
+            ProcessingLogger(),
+        )
+
+        sheet = formula_workbook["主数据"]
+        self.assertEqual(sheet.cell(2, 7).value, "普通烘干")
+        self.assertEqual(sheet.cell(3, 7).value, "C6热泵干衣机")
+        self.assertEqual(result.corrected_rows, 2)
+        self.assertEqual(result.review_rows, 0)

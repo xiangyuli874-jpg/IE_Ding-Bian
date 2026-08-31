@@ -548,11 +548,14 @@ def decompose_rolling_remark_rules(
 
     for row_index in range(2, sheet.max_row + 1):
         line = str(sheet.cell(row_index, headers["线体"]).value or "").strip()
-        if _is_wave_line(line) or not _is_uncolored_for_decomposition(sheet, row_index, headers):
+        if _is_wave_line(line):
             continue
 
         remark = str(sheet.cell(row_index, headers["备注"]).value or "")
         remark_upper = remark.upper()
+        has_priority_remark = any(marker in remark for marker in ("三星", "双滚筒")) or "CKD" in remark_upper
+        if not has_priority_remark and not _is_uncolored_for_decomposition(sheet, row_index, headers):
+            continue
         order_qty = _to_decimal(sheet.cell(row_index, headers["订单数"]).value)
 
         if "CKD" in remark_upper:
@@ -2676,14 +2679,20 @@ def _deterministic_type_correction(
     description: str,
     sheet_metal: str,
 ) -> str | None:
+    if product_kind == "dry" and current_type in {DOMESTIC_TYPE, EXPORT_TYPE}:
+        return ORDINARY_DRY_TYPE
     if (
         product_kind == "dryer"
         and current_type in {DOMESTIC_TYPE, EXPORT_TYPE}
         and ("T10" in sheet_metal.upper() or description.upper().startswith("DWD10"))
     ):
         return T10P10_DRYER_TYPE
-    if product_kind == "dry" and current_type == EXPORT_TYPE:
-        return ORDINARY_DRY_TYPE
+    if (
+        product_kind == "dryer"
+        and current_type in {DOMESTIC_TYPE, EXPORT_TYPE}
+        and ("C6" in sheet_metal.upper() or "C6" in description.upper())
+    ):
+        return C6_HEAT_PUMP_DRYER_TYPE
     return None
 
 

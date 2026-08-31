@@ -21,7 +21,11 @@ from .reporter import style_header
 COEFFICIENT_SUPPLEMENT_SHEET = "系数补充"
 COEFFICIENT_LOOKUP_SHEET = "系数查询表"
 COEFFICIENT_STILL_MISSING_SHEET = "系数仍缺失"
-EXCLUDED_MATERIAL_CODES = {"Z4U6010100"}
+EXCLUDED_MATERIAL_CODES = {
+    "Z4U6010100",
+    "Z4U6010108",
+    "Z4U60501080",
+}
 
 
 @dataclass
@@ -152,6 +156,17 @@ def cleanup_order_rows(sheet: Worksheet, logger: ProcessingLogger) -> OrderClean
     )
 
 
+def cleanup_order_rows_preserve_blank_orders(sheet: Worksheet, logger: ProcessingLogger) -> OrderCleanupResult:
+    """Run all foundation cleanup rules except deleting blank-order rows."""
+    deleted_blank_line_rows = delete_blank_line_rows(sheet, logger)
+    deleted_excluded_rows = delete_excluded_material_code_rows(sheet, logger)
+    return OrderCleanupResult(
+        deleted_blank_order_rows=0,
+        deleted_blank_line_rows=deleted_blank_line_rows,
+        deleted_excluded_material_rows=deleted_excluded_rows,
+    )
+
+
 def delete_coefficient_supplement_rows(
     workbook: Workbook,
     target_sheet_name: str,
@@ -268,6 +283,10 @@ def prepare_coefficients(
     cleanup_rows: bool = True,
 ) -> CoefficientPrepareResult:
     formula_sheet = workbook[target_sheet_name]
+    # A prior manual-fill pass may have left an outdated “系数仍缺失” sheet.
+    # The fresh “系数补充” sheet built below is the source of truth for this
+    # preparation pass, so remove the stale snapshot before recomputing it.
+    remove_sheet_if_exists(workbook, COEFFICIENT_STILL_MISSING_SHEET)
     cleanup_result = (
         cleanup_order_rows(formula_sheet, logger)
         if cleanup_rows
