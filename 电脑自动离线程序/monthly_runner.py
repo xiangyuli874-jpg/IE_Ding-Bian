@@ -297,7 +297,12 @@ def run_wizard(state: dict[str, Any]) -> Path | None:
             "prepare_sheet_metal",
             "prepare_material_description",
         }:
-            current_file = run_stage(current_file, output_dir, "prepare-foundation-data", log_path)
+            current_file = run_stage(
+                current_file,
+                output_dir,
+                "prepare-foundation-data-preserve-order-blanks",
+                log_path,
+            )
             step = next_foundation_step(current_file, log_path)
             state = make_state(step, current_file, log_path, output_dir)
             continue

@@ -39,6 +39,8 @@ DEFAULT_STAGES = [
     "decompose-wave-basic",
     "decompose-wave-final",
     "decompose-extra-summary",
+    "audit-material-code-types",
+    "refresh-line-classification-detail",
     "classify",
 ]
 SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm"}
